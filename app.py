@@ -520,13 +520,63 @@ def chart_card(title, description, fig):
 
 # ── Phase 4 chart functions ───────────────────────────────────────────────────
 
+def _assign_textpositions(pts):
+    """Assign per-point Plotly textposition strings to reduce label overlap.
+    pts: dict of name -> (x, y). Returns dict of name -> textposition string.
+    """
+    if not pts:
+        return {}
+    names = list(pts.keys())
+    x_span = (max(v[0] for v in pts.values()) - min(v[0] for v in pts.values())) or 1.0
+    sorted_names = sorted(names, key=lambda nm: pts[nm][0])
+    count = len(sorted_names)
+    result = {}
+    for rank, name in enumerate(sorted_names):
+        x, y = pts[name]
+        if rank == 0:
+            h = "right"
+        elif rank == count - 1:
+            h = "left"
+        else:
+            h = "center"
+        close = [
+            pts[nm][1] for nm in names
+            if nm != name and abs(pts[nm][0] - x) / x_span < 0.25
+        ]
+        v = "bottom" if (close and y <= sum(close) / len(close)) else "top"
+        result[name] = f"{v} {h}"
+    return result
+
+
 def chart_risk_return_scatter(core_metrics_df, colours, plotly_layout):
     """Scatter: x = Ann. Volatility (%), y = Ann. Return (%), size = Sharpe Ratio."""
     fig = go.Figure()
     funds = [c for c in core_metrics_df.columns if c != "Benchmark"]
+
+    # Collect all coordinates upfront for axis range and label placement
+    all_pts = {}
     for fund in funds:
-        x = float(core_metrics_df.loc["Ann. Volatility (%)", fund])
-        y = float(core_metrics_df.loc["Ann. Return (%)", fund])
+        all_pts[fund] = (
+            float(core_metrics_df.loc["Ann. Volatility (%)", fund]),
+            float(core_metrics_df.loc["Ann. Return (%)", fund]),
+        )
+    if "Benchmark" in core_metrics_df.columns:
+        all_pts["Benchmark"] = (
+            float(core_metrics_df.loc["Ann. Volatility (%)", "Benchmark"]),
+            float(core_metrics_df.loc["Ann. Return (%)", "Benchmark"]),
+        )
+    text_pos = _assign_textpositions(all_pts)
+
+    # Explicit axis ranges with padding so edge labels are never clipped
+    all_x = [v[0] for v in all_pts.values()]
+    all_y = [v[1] for v in all_pts.values()]
+    x_span = (max(all_x) - min(all_x)) or 1.0
+    y_span = (max(all_y) - min(all_y)) or 1.0
+    x_range = [min(all_x) - 0.25 * x_span, max(all_x) + 0.40 * x_span]
+    y_range = [min(all_y) - 0.20 * y_span, max(all_y) + 0.45 * y_span]
+
+    for fund in funds:
+        x, y = all_pts[fund]
         sharpe = float(core_metrics_df.loc["Sharpe Ratio", fund])
         size = max(sharpe * 60, 20)
         colour = colours.get(fund, "#9B9B9B")
@@ -535,7 +585,7 @@ def chart_risk_return_scatter(core_metrics_df, colours, plotly_layout):
             mode="markers+text",
             name=fund,
             text=[fund],
-            textposition="top center",
+            textposition=text_pos.get(fund, "top center"),
             textfont=dict(size=11, color="#1A1A1A"),
             marker=dict(size=size, color=colour, opacity=0.85, line=dict(width=2, color="#FFFFFF")),
             hovertemplate=(
@@ -546,35 +596,23 @@ def chart_risk_return_scatter(core_metrics_df, colours, plotly_layout):
             )
         ))
     if "Benchmark" in core_metrics_df.columns:
-        bx = float(core_metrics_df.loc["Ann. Volatility (%)", "Benchmark"])
-        by = float(core_metrics_df.loc["Ann. Return (%)", "Benchmark"])
+        bx, by = all_pts["Benchmark"]
         fig.add_trace(go.Scatter(
             x=[bx], y=[by],
             mode="markers+text",
             name="Benchmark",
             text=["Benchmark"],
-            textposition="top center",
+            textposition=text_pos.get("Benchmark", "top center"),
             textfont=dict(size=10, color="#9B9B9B"),
             marker=dict(size=18, color="#9B9B9B", symbol="diamond", line=dict(width=2, color="#FFFFFF")),
             hovertemplate="<b>Benchmark</b><br>Volatility: %{x:.2f}%<br>Return: %{y:.2f}%<extra></extra>"
         ))
-    fig.add_annotation(
-        text="Bubble size = Sharpe Ratio",
-        xref="paper", yref="paper",
-        x=0.01, y=0.99,
-        showarrow=False,
-        font=dict(size=10, color="#9B9B9B"),
-        bgcolor="rgba(255,255,255,0.8)",
-        bordercolor="#E5E5EA",
-        borderwidth=1,
-        borderpad=4,
-    )
     layout = {k: v for k, v in plotly_layout.items() if k != "title"}
     fig.update_layout(**layout)
     fig.update_layout(
         title=dict(text="Risk-Return Profile"),
-        xaxis=dict(title="Annualised Volatility (%)", gridcolor="#F0EFEC"),
-        yaxis=dict(title="Annualised Return (%)", gridcolor="#F0EFEC"),
+        xaxis=dict(title="Annualised Volatility (%)", gridcolor="#F0EFEC", range=x_range),
+        yaxis=dict(title="Annualised Return (%)", gridcolor="#F0EFEC", range=y_range),
         showlegend=False,
         height=480,
     )
