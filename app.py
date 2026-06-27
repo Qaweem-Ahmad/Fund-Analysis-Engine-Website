@@ -1191,22 +1191,22 @@ section[data-testid="stSidebar"] .stRadio [role="radiogroup"] label div {
 
 /* Section spacing */
 section[data-testid="stSidebar"] .stRadio [role="radiogroup"] > label:nth-child(3),
-section[data-testid="stSidebar"] .stRadio [role="radiogroup"] > label:nth-child(7),
-section[data-testid="stSidebar"] .stRadio [role="radiogroup"] > label:nth-child(9),
-section[data-testid="stSidebar"] .stRadio [role="radiogroup"] > label:nth-child(12) {
+section[data-testid="stSidebar"] .stRadio [role="radiogroup"] > label:nth-child(8),
+section[data-testid="stSidebar"] .stRadio [role="radiogroup"] > label:nth-child(10),
+section[data-testid="stSidebar"] .stRadio [role="radiogroup"] > label:nth-child(13) {
     margin-top: 0.65rem !important;
 }
 
 /* Section labels via ::before */
-section[data-testid="stSidebar"] .stRadio [role="radiogroup"] > label:nth-child(3)::before { content: "ANALYSIS"; }
-section[data-testid="stSidebar"] .stRadio [role="radiogroup"] > label:nth-child(7)::before { content: "RANKINGS"; }
-section[data-testid="stSidebar"] .stRadio [role="radiogroup"] > label:nth-child(9)::before  { content: "TOOLS"; }
-section[data-testid="stSidebar"] .stRadio [role="radiogroup"] > label:nth-child(12)::before { content: "DATA"; }
+section[data-testid="stSidebar"] .stRadio [role="radiogroup"] > label:nth-child(3)::before  { content: "ANALYSIS"; }
+section[data-testid="stSidebar"] .stRadio [role="radiogroup"] > label:nth-child(8)::before  { content: "RANKINGS"; }
+section[data-testid="stSidebar"] .stRadio [role="radiogroup"] > label:nth-child(10)::before { content: "TOOLS"; }
+section[data-testid="stSidebar"] .stRadio [role="radiogroup"] > label:nth-child(13)::before { content: "DATA"; }
 
 section[data-testid="stSidebar"] .stRadio [role="radiogroup"] > label:nth-child(3)::before,
-section[data-testid="stSidebar"] .stRadio [role="radiogroup"] > label:nth-child(7)::before,
-section[data-testid="stSidebar"] .stRadio [role="radiogroup"] > label:nth-child(9)::before,
-section[data-testid="stSidebar"] .stRadio [role="radiogroup"] > label:nth-child(12)::before {
+section[data-testid="stSidebar"] .stRadio [role="radiogroup"] > label:nth-child(8)::before,
+section[data-testid="stSidebar"] .stRadio [role="radiogroup"] > label:nth-child(10)::before,
+section[data-testid="stSidebar"] .stRadio [role="radiogroup"] > label:nth-child(13)::before {
     position: absolute !important;
     transform: translateY(-1.05rem) !important;
     font-size: 0.58rem !important;
@@ -1641,7 +1641,7 @@ for key, value in defaults.items():
 st.sidebar.markdown("""
 <div class="sidebar-title">Fund Analysis Engine</div>
 """, unsafe_allow_html=True)
-pages = ["Home", "Setup", "Performance", "TOPSIS", "Yuan & Yuan", "📋 Executive Summary", "📋 Model Comparison", "📅 Rolling Rankings", "🎨 Visualisations", "📦 Portfolio", "Sensitivity & Report", "🗃️ Raw Data", "⚖️ Comparison"]
+pages = ["Home", "Setup", "Performance", "⚖️ Comparison", "TOPSIS", "Yuan & Yuan", "📋 Executive Summary", "📋 Model Comparison", "📅 Rolling Rankings", "🎨 Visualisations", "📦 Portfolio", "Sensitivity & Report", "🗃️ Raw Data"]
 if "_nav_page_idx" not in st.session_state:
     st.session_state._nav_page_idx = 0
 if "_force_nav" not in st.session_state:
