@@ -3908,7 +3908,6 @@ elif page == "Sensitivity & Report":
             _pdf_slot = _export_link(pdf_bytes, "fund_analysis_report.pdf", "application/pdf", "Download PDF Report")
         except Exception as _e:
             logging.exception("PDF generation failed")
-            st.exception(_e)
 
         _excel_slot = '<p style="color:#FF3B30;font-size:0.8rem;margin-top:0.75rem;">Excel generation failed.</p>'
         try:
