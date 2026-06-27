@@ -67,15 +67,17 @@ def chart_topsis_heatmap(normalised_df: pd.DataFrame, plotly_layout: Dict) -> go
 
 
 def chart_cmatrix(c_matrix: pd.DataFrame, plotly_layout: Dict) -> go.Figure:
-    # Copy and cast to float so np.fill_diagonal can assign NaN (fails on int dtype)
-    c_matrix_plot = c_matrix.copy().astype(float)
-    np.fill_diagonal(c_matrix_plot.values, np.nan)
+    # to_numpy(copy=True) guarantees a writable array -- .copy().astype(float).values
+    # can still return a read-only buffer in some pandas/NumPy version combinations.
+    z_matrix = c_matrix.to_numpy(dtype=float, copy=True)
+    np.fill_diagonal(z_matrix, np.nan)
+    text_matrix = np.round(z_matrix, 3)
     fig = go.Figure(data=go.Heatmap(
-        z=c_matrix_plot.values,
-        x=c_matrix_plot.columns,
-        y=c_matrix_plot.index,
+        z=z_matrix,
+        x=c_matrix.columns,
+        y=c_matrix.index,
         colorscale=[[0, '#FF3B30'], [0.5, '#FF9F0A'], [1, '#34C759']],
-        text=np.round(c_matrix_plot.values, 3),
+        text=text_matrix,
         texttemplate="%{text}",
         textfont={"size": 10},
         hoverongaps=False

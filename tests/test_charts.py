@@ -71,6 +71,26 @@ class TestChartCmatrix:
         assert int_cmatrix.dtypes.iloc[0] == original_dtype
         assert int_cmatrix.iloc[0, 0] == 1  # diagonal still 1, not NaN
 
+    def test_readonly_dataframe_values_does_not_raise(self):
+        """Regression: .copy().astype(float).values can return a read-only buffer.
+        chart_cmatrix must use to_numpy(copy=True) so fill_diagonal never hits a
+        read-only array, even when the backing store is flagged non-writeable."""
+        data = [[1.0, 0.4], [0.6, 1.0]]
+        df = pd.DataFrame(data, index=["A", "B"], columns=["A", "B"])
+        # Force the underlying array to be read-only, mimicking the live failure
+        df.values.flags.writeable = False
+        chart_cmatrix(df, {})  # must not raise ValueError or TypeError
+
+    def test_uses_to_numpy_not_values_for_diagonal(self):
+        """chart_cmatrix source must use to_numpy(copy=True), not .values, for fill_diagonal."""
+        import inspect
+        src = inspect.getsource(chart_cmatrix)
+        assert 'to_numpy' in src, "chart_cmatrix must use to_numpy(copy=True)"
+        assert 'copy=True' in src, "to_numpy call must include copy=True"
+        assert 'fill_diagonal(c_matrix' not in src, (
+            "fill_diagonal must operate on the numpy copy, not the DataFrame or its .values"
+        )
+
 
 class TestCorrelationHeatmap:
     """Regression tests for chart_correlation_heatmap in app.py."""
