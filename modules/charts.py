@@ -67,8 +67,8 @@ def chart_topsis_heatmap(normalised_df: pd.DataFrame, plotly_layout: Dict) -> go
 
 
 def chart_cmatrix(c_matrix: pd.DataFrame, plotly_layout: Dict) -> go.Figure:
-    # Set diagonal to NaN
-    c_matrix_plot = c_matrix.copy()
+    # Copy and cast to float so np.fill_diagonal can assign NaN (fails on int dtype)
+    c_matrix_plot = c_matrix.copy().astype(float)
     np.fill_diagonal(c_matrix_plot.values, np.nan)
     fig = go.Figure(data=go.Heatmap(
         z=c_matrix_plot.values,
