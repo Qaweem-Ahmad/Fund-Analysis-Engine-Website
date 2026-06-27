@@ -3597,6 +3597,31 @@ elif page == "Sensitivity & Report":
         st.markdown('<hr style="border:none; border-top: 1px solid #E8DDD3; margin: 1.5rem 0 1rem 0;">', unsafe_allow_html=True)
         st.markdown('<p style="font-size:1rem;font-weight:700;color:#1D1D1F;margin-bottom:0.75rem;">Download Reports</p>', unsafe_allow_html=True)
 
+        st.markdown("""
+        <style>
+        div[data-testid="stMarkdown"]:has(#export-section-start)
+            ~ div[data-testid="stHorizontalBlock"]
+            [data-testid="stDownloadButton"] button {
+            background-color: #154D57 !important;
+            color: #FFFFFF !important;
+            border-radius: 8px !important;
+            font-weight: 600 !important;
+            border: none !important;
+            transition: background-color 0.15s ease;
+        }
+        div[data-testid="stMarkdown"]:has(#export-section-start)
+            ~ div[data-testid="stHorizontalBlock"]
+            [data-testid="stDownloadButton"] button:hover,
+        div[data-testid="stMarkdown"]:has(#export-section-start)
+            ~ div[data-testid="stHorizontalBlock"]
+            [data-testid="stDownloadButton"] button:focus {
+            background-color: #1A6070 !important;
+            color: #FFFFFF !important;
+        }
+        </style>
+        <div id="export-section-start"></div>
+        """, unsafe_allow_html=True)
+
         _col_pdf, _col_excel = st.columns(2, gap="large")
 
         with _col_pdf:
