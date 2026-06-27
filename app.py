@@ -849,15 +849,17 @@ def chart_correlation_heatmap(log_returns, plotly_layout):
     labels = corr.columns.tolist()
     n = len(labels)
 
-    # Mute diagonal in z so off-diagonal values fill the colour range
-    corr_z = corr.copy().astype(float)
-    np.fill_diagonal(corr_z.values, np.nan)
+    # Mute diagonal in z so off-diagonal values fill the colour range.
+    # to_numpy(copy=True) guarantees a writable array; .astype(float) on a
+    # DataFrame can return a read-only buffer in some pandas/NumPy versions.
+    corr_z = corr_full.to_numpy(dtype=float, copy=True)
+    np.fill_diagonal(corr_z, np.nan)
 
     # 3 dp text for all cells; diagonal explicitly shows "1.000"
     text_matrix = [[f"{corr.iloc[r, c]:.3f}" for c in range(n)] for r in range(n)]
 
     fig = go.Figure(data=go.Heatmap(
-        z=corr_z.values,
+        z=corr_z,
         x=labels,
         y=labels,
         text=text_matrix,

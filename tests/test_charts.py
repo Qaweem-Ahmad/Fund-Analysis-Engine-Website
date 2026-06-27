@@ -97,3 +97,20 @@ class TestCorrelationHeatmap:
         body = _corr_heatmap_body()
         assert 'fill_diagonal' in body, "Expected np.fill_diagonal to mute diagonal in correlation heatmap"
         assert 'nan' in body.lower(), "Expected NaN assignment for diagonal in correlation heatmap"
+
+    def test_no_readonly_array_mutation(self):
+        """Regression: .astype(float) on a DataFrame can return a read-only buffer.
+        The fix uses to_numpy(copy=True) which guarantees a writable array."""
+        body = _corr_heatmap_body()
+        assert 'to_numpy' in body, (
+            "chart_correlation_heatmap must use to_numpy(copy=True) to get a writable array "
+            "before calling np.fill_diagonal -- .astype(float) can return read-only buffers"
+        )
+        assert 'copy=True' in body, "to_numpy call must include copy=True to ensure writability"
+
+    def test_readonly_numpy_array_raises_without_fix(self):
+        """Confirm that np.fill_diagonal on a read-only array raises ValueError."""
+        arr = np.array([[1.0, 0.9], [0.9, 1.0]])
+        arr.flags.writeable = False
+        with pytest.raises((ValueError, TypeError)):
+            np.fill_diagonal(arr, np.nan)
