@@ -730,16 +730,23 @@ def chart_monthly_heatmap(fund_returns, colours, plotly_layout):
         series = fund_returns[fund].copy()
         series.index = pd.to_datetime(series.index)
         years = sorted(series.index.year.unique())
-        matrix, text_vals = [], []
+        matrix, text_vals, hover_vals = [], [], []
         for year in years:
-            row, trow = [], []
+            row, trow, hrow = [], [], []
             for month in range(1, 13):
                 mask = (series.index.year == year) & (series.index.month == month)
-                val = (float(series[mask].values[0]) * 100) if mask.sum() > 0 else None
-                row.append(round(val, 2) if val is not None else None)
-                trow.append(f"{val:.1f}%" if val is not None else "")
+                if mask.sum() > 0:
+                    val = float(series[mask].values[0]) * 100
+                    row.append(round(val, 2))
+                    trow.append(f"{val:.1f}%")
+                    hrow.append(f"{month_labels[month - 1]} {year}: {val:+.2f}%")
+                else:
+                    row.append(None)
+                    trow.append("")
+                    hrow.append("No data")
             matrix.append(row)
             text_vals.append(trow)
+            hover_vals.append(hrow)
         fig.add_trace(
             go.Heatmap(
                 z=matrix,
@@ -748,6 +755,9 @@ def chart_monthly_heatmap(fund_returns, colours, plotly_layout):
                 text=text_vals,
                 texttemplate="%{text}",
                 textfont=dict(size=9),
+                customdata=hover_vals,
+                hovertemplate="%{customdata}<extra></extra>",
+                hoverongaps=True,
                 colorscale=[
                     [0.0, "#DC2626"],
                     [0.4, "#FCA5A5"],
@@ -783,7 +793,7 @@ def chart_monthly_heatmap(fund_returns, colours, plotly_layout):
         height=160 * n,
         margin=dict(r=90),
         paper_bgcolor="#FFFFFF",
-        plot_bgcolor="#FDFCFB",
+        plot_bgcolor="#DCDCDC",
     )
     return fig
 
