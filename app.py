@@ -1096,14 +1096,12 @@ section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] {
     padding: 0.1rem 0.25rem 0.55rem 0.25rem !important;
     margin: 0 0 0.75rem 0 !important;
     border-bottom: 1px solid #E8DDD3 !important;
-}
-
-.sidebar-title-text {
     font-size: 1.05rem !important;
-    font-weight: 700 !important;
-    color: #154D57 !important;
-    letter-spacing: -0.02em !important;
-    line-height: 1.15 !important;
+    font-weight: 800 !important;
+    line-height: 1.1 !important;
+    letter-spacing: -0.03em !important;
+    white-space: nowrap !important;
+    color: #0A0A0A !important;
 }
 
 section[data-testid="stSidebar"] .stRadio {
@@ -1490,9 +1488,7 @@ for key, value in defaults.items():
 
 # Sidebar
 st.sidebar.markdown("""
-<div class="sidebar-title">
-    <div class="sidebar-title-text">Fund Analysis<br>Engine</div>
-</div>
+<div class="sidebar-title">Fund Analysis Engine</div>
 """, unsafe_allow_html=True)
 pages = ["Home", "Setup", "Performance", "TOPSIS", "Yuan & Yuan", "📋 Executive Summary", "📋 Model Comparison", "📅 Rolling Rankings", "🎨 Visualisations", "📦 Portfolio", "Sensitivity & Report", "🗃️ Raw Data", "⚖️ Comparison"]
 if "_nav_page_idx" not in st.session_state:
