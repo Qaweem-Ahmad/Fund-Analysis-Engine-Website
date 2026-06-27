@@ -15,7 +15,11 @@ def chart_cumulative_returns(log_returns: pd.DataFrame, colours: Dict[str, str],
             fig.add_trace(go.Scatter(x=cum_ret.index, y=cum_ret, mode='lines', name=col, line=dict(color=colours.get(col, '#0071E3'))))
     fig.add_hline(y=0, line_dash="dash", line_color="#E5E5EA")
     fig.update_layout(**{k: v for k, v in plotly_layout.items() if k != 'title'})
-    fig.update_layout(title=dict(text="Cumulative Returns — January 2020 to October 2025", font=dict(size=16, color="#1D1D1F")))
+    fig.update_layout(title=dict(text="Cumulative Returns: January 2020 to October 2025", font=dict(size=16, color="#1D1D1F")))
+    fig.update_layout(
+        legend=dict(orientation="h", y=-0.15, x=0.5, xanchor="center", yanchor="top"),
+        margin=dict(b=55),
+    )
     return fig
 
 
@@ -33,6 +37,10 @@ def chart_drawdown(fund_returns: pd.DataFrame, benchmark_returns: pd.Series, col
     fig.add_trace(go.Scatter(x=drawdown_b.index, y=drawdown_b, mode='lines', name='Benchmark', line=dict(dash='dot', color='#6E6E73')))
     fig.update_layout(**{k: v for k, v in plotly_layout.items() if k != 'title'})
     fig.update_layout(title=dict(text="Peak-to-Trough Drawdown", font=dict(size=16, color="#1D1D1F")))
+    fig.update_layout(
+        legend=dict(orientation="h", y=-0.15, x=0.5, xanchor="center", yanchor="top"),
+        margin=dict(b=55),
+    )
     return fig
 
 
@@ -47,6 +55,10 @@ def chart_rolling_sharpe(fund_returns: pd.DataFrame, rf_monthly: float, colours:
     fig.add_hline(y=0, line_dash="dash", line_color="#E5E5EA")
     fig.update_layout(**{k: v for k, v in plotly_layout.items() if k != 'title'})
     fig.update_layout(title=dict(text="Rolling 12-Month Sharpe Ratio", font=dict(size=16, color="#1D1D1F")))
+    fig.update_layout(
+        legend=dict(orientation="h", y=-0.15, x=0.5, xanchor="center", yanchor="top"),
+        margin=dict(b=55),
+    )
     return fig
 
 
