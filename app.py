@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import logging
+import base64
 from datetime import datetime
 from modules.data import fetch_data
 from modules.metrics import compute_core_metrics, compute_downside_metrics
@@ -3599,96 +3600,89 @@ elif page == "Sensitivity & Report":
         st.markdown('<hr style="border:none; border-top: 1px solid #E8DDD3; margin: 1.5rem 0 1rem 0;">', unsafe_allow_html=True)
         st.markdown('<p style="font-size:1rem;font-weight:700;color:#1D1D1F;margin-bottom:0.75rem;">Download Reports</p>', unsafe_allow_html=True)
 
-        st.markdown("""
+        def _export_link(file_bytes, file_name, mime_type, label):
+            b64 = base64.b64encode(file_bytes).decode()
+            return (
+                f'<a class="export-dl-btn" '
+                f'href="data:{mime_type};base64,{b64}" '
+                f'download="{file_name}">{label}</a>'
+            )
+
+        _pdf_slot = '<p style="color:#FF3B30;font-size:0.8rem;margin-top:0.75rem;">PDF generation failed.</p>'
+        try:
+            sample_period = f"{st.session_state.start_date} to {st.session_state.end_date}"
+            pdf_bytes = generate_pdf(
+                st.session_state.fund_names, sample_period,
+                st.session_state.core_metrics_df, st.session_state.downside_df,
+                st.session_state.topsis_ranking, st.session_state.yuan_ranking,
+                combined_df, text_df
+            )
+            _pdf_slot = _export_link(pdf_bytes, "fund_analysis_report.pdf", "application/pdf", "Download PDF Report")
+        except Exception as _e:
+            logging.debug("PDF generation failed: %s", _e)
+
+        _excel_slot = '<p style="color:#FF3B30;font-size:0.8rem;margin-top:0.75rem;">Excel generation failed.</p>'
+        try:
+            excel_bytes = generate_excel(
+                fund_names      = st.session_state.fund_names,
+                sample_period   = f"{st.session_state.get('start_date', '2020-01-01')} to {st.session_state.get('end_date', '2025-10-31')}",
+                core_metrics_df = st.session_state.core_metrics_df,
+                downside_df     = st.session_state.downside_df,
+                topsis_ranking  = st.session_state.topsis_ranking,
+                yuan_ranking    = st.session_state.yuan_ranking,
+                metrics_matrix  = st.session_state.metrics_matrix,
+                naive_ranking   = st.session_state.get("naive_ranking"),
+                borda_ranking   = st.session_state.get("borda_ranking"),
+            )
+            _excel_fname = f"fund_analysis_{pd.Timestamp.now().strftime('%Y%m%d')}.xlsx"
+            _excel_slot = _export_link(
+                excel_bytes, _excel_fname,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "Download Excel Workbook"
+            )
+        except Exception as _e:
+            logging.debug("Excel generation failed: %s", _e)
+
+        st.markdown(f"""
         <style>
-        div[data-testid="stMarkdown"]:has(#export-section-start)
-            ~ div[data-testid="stHorizontalBlock"]
-            [data-testid="stDownloadButton"] button {
-            background-color: #154D57 !important;
+        .export-dl-btn {{
+            display: block;
+            background-color: #154D57;
             color: #FFFFFF !important;
-            border-radius: 8px !important;
-            font-weight: 600 !important;
-            border: none !important;
+            text-align: center;
+            padding: 0.55rem 1rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            text-decoration: none !important;
+            margin-top: 0.75rem;
             transition: background-color 0.15s ease;
-        }
-        div[data-testid="stMarkdown"]:has(#export-section-start)
-            ~ div[data-testid="stHorizontalBlock"]
-            [data-testid="stDownloadButton"] button:hover,
-        div[data-testid="stMarkdown"]:has(#export-section-start)
-            ~ div[data-testid="stHorizontalBlock"]
-            [data-testid="stDownloadButton"] button:focus {
-            background-color: #1A6070 !important;
+        }}
+        .export-dl-btn:hover {{
+            background-color: #1A6070;
             color: #FFFFFF !important;
-        }
+            text-decoration: none !important;
+        }}
         </style>
-        <div id="export-section-start"></div>
-        """, unsafe_allow_html=True)
-
-        _col_pdf, _col_excel = st.columns(2, gap="large")
-
-        with _col_pdf:
-            st.markdown("""
-            <div style="background:#F9F7F4;border:1px solid #E8DDD3;border-radius:12px;
-                        padding:1.1rem 1.25rem;margin-bottom:0.6rem;">
+        <div style="display:flex;gap:1.5rem;">
+            <div style="flex:1;background:#F9F7F4;border:1px solid #E8DDD3;border-radius:12px;padding:1.1rem 1.25rem;">
                 <div style="font-size:0.9rem;font-weight:700;color:#1D1D1F;margin-bottom:0.35rem;">PDF Report</div>
                 <div style="font-size:0.82rem;color:#5A5A5A;line-height:1.55;margin-bottom:0.5rem;">
                     Professional report with methodology, tables, rankings, and key outputs.
                 </div>
                 <div style="font-size:0.75rem;color:#9B9B9B;">Best for submission or sharing.</div>
+                {_pdf_slot}
             </div>
-            """, unsafe_allow_html=True)
-            try:
-                sample_period = f"{st.session_state.start_date} to {st.session_state.end_date}"
-                pdf_bytes = generate_pdf(
-                    st.session_state.fund_names, sample_period,
-                    st.session_state.core_metrics_df, st.session_state.downside_df,
-                    st.session_state.topsis_ranking, st.session_state.yuan_ranking,
-                    combined_df, text_df
-                )
-                st.download_button(
-                    "Download PDF Report",
-                    pdf_bytes,
-                    file_name="fund_analysis_report.pdf",
-                    mime="application/pdf",
-                    key="download_pdf",
-                    use_container_width=True,
-                )
-            except Exception as e:
-                st.error(f"PDF generation failed: {str(e)}")
-
-        with _col_excel:
-            st.markdown("""
-            <div style="background:#F9F7F4;border:1px solid #E8DDD3;border-radius:12px;
-                        padding:1.1rem 1.25rem;margin-bottom:0.6rem;">
+            <div style="flex:1;background:#F9F7F4;border:1px solid #E8DDD3;border-radius:12px;padding:1.1rem 1.25rem;">
                 <div style="font-size:0.9rem;font-weight:700;color:#1D1D1F;margin-bottom:0.35rem;">Excel Workbook</div>
                 <div style="font-size:0.82rem;color:#5A5A5A;line-height:1.55;margin-bottom:0.5rem;">
                     Structured workbook with summary rankings, metrics, matrices, and model outputs.
                 </div>
                 <div style="font-size:0.75rem;color:#9B9B9B;">Best for checking formulas and raw outputs.</div>
+                {_excel_slot}
             </div>
-            """, unsafe_allow_html=True)
-            try:
-                excel_bytes = generate_excel(
-                    fund_names      = st.session_state.fund_names,
-                    sample_period   = f"{st.session_state.get('start_date', '2020-01-01')} to {st.session_state.get('end_date', '2025-10-31')}",
-                    core_metrics_df = st.session_state.core_metrics_df,
-                    downside_df     = st.session_state.downside_df,
-                    topsis_ranking  = st.session_state.topsis_ranking,
-                    yuan_ranking    = st.session_state.yuan_ranking,
-                    metrics_matrix  = st.session_state.metrics_matrix,
-                    naive_ranking   = st.session_state.get("naive_ranking"),
-                    borda_ranking   = st.session_state.get("borda_ranking"),
-                )
-                st.download_button(
-                    label="Download Excel Workbook",
-                    data=excel_bytes,
-                    file_name=f"fund_analysis_{pd.Timestamp.now().strftime('%Y%m%d')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True,
-                    key="download_excel"
-                )
-            except Exception as e:
-                st.error(f"Excel generation error: {e}")
+        </div>
+        """, unsafe_allow_html=True)
 
         # Footer
         st.markdown("""
