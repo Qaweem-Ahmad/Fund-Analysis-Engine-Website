@@ -1682,6 +1682,15 @@ if st.session_state._force_nav:
 page = st.sidebar.radio("Navigation", pages, key="nav_radio")
 st.session_state._nav_page_idx = pages.index(page)
 st.session_state.current_page = page
+
+# Scroll to top on page change only -- not on same-page interactions
+if st.session_state.get("_prev_page") != page:
+    st.session_state._prev_page = page
+    components.html(
+        '<script>window.parent.scrollTo({ top: 0, behavior: "smooth" });</script>',
+        height=0,
+    )
+
 st.sidebar.markdown("<div style='height: 0.4rem'></div>", unsafe_allow_html=True)
 if st.session_state.analysis_run:
     st.sidebar.markdown("""
