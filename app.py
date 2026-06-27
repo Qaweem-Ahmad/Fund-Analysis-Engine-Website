@@ -1641,6 +1641,43 @@ elif page == "📋 Executive Summary":
         fund_names  = st.session_state.fund_names
         core_df     = st.session_state.core_metrics_df
         downside_df = st.session_state.downside_df
+
+        # Auto-compute rankings if the user navigated here without visiting TOPSIS/Yuan pages first
+        if st.session_state.topsis_ranking is None or st.session_state.yuan_ranking is None:
+            _mm = st.session_state.metrics_matrix
+            if _mm is not None:
+                try:
+                    _pw = st.session_state.pillar_weights or {
+                        'Returns': 40, 'Risk-Adj': 25, 'Risk/DD': 20, 'Costs': 10, 'ESG': 5
+                    }
+                    _benefits = [
+                        'Ann. Return (%)', 'Alpha (ann. %)', 'Sharpe Ratio', 'Sortino Ratio',
+                        'Treynor Ratio', 'Information Ratio', 'R²', 'Upside Capture (%)',
+                        'Calmar Ratio', 'ESG Globe Rating', 'Max Drawdown (%)',
+                    ]
+                    _costs = [
+                        'Ann. Volatility (%)', 'Beta', 'Tracking Error (%)',
+                        'Max DD Duration (mths)', 'Downside Capture (%)', 'OCF', 'Carbon Risk Score',
+                    ]
+                    if st.session_state.topsis_ranking is None:
+                        _tr = _inline_topsis(_mm, fund_names, _pw)
+                        if not _tr.empty:
+                            # Rename and rescale to match format stored by the TOPSIS page (Score 0-1, Rank)
+                            _tr = _tr.rename(columns={'TOPSIS Score (%)': 'Score'})
+                            _tr['Score'] = (_tr['Score'] / 100.0).round(6)
+                            st.session_state.topsis_ranking = _tr
+                            st.session_state.topsis_obj = TOPSIS(_mm, _benefits, _costs)
+                    if st.session_state.yuan_ranking is None:
+                        _yuan_obj = YuanYuan(_mm, _benefits, _costs)
+                        _yuan_ranking, _c_matrix, _n = _yuan_obj.run(_pw)
+                        st.session_state.yuan_ranking = _yuan_ranking
+                        st.session_state.yuan_obj = _yuan_obj
+                except Exception as _e:
+                    st.warning(
+                        f"Model rankings could not be auto-computed: {_e}. "
+                        "Visit the TOPSIS and Yuan & Yuan pages to set weights and compute rankings."
+                    )
+
         topsis_r    = st.session_state.topsis_ranking
         yuan_r      = st.session_state.yuan_ranking
 
