@@ -3463,7 +3463,9 @@ elif page == "Sensitivity & Report":
         for scheme in score_df.index:
             ranks = score_df.loc[scheme].rank(ascending=False)
             for fund in score_df.columns:
-                text_df.loc[scheme, fund] = f"{score_df.loc[scheme, fund]:.1%} ({int(ranks[fund])}th)"
+                _r = int(ranks[fund])
+                _sfx = "th" if 11 <= (_r % 100) <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(_r % 10, "th")
+                text_df.loc[scheme, fund] = f"{score_df.loc[scheme, fund]:.1%} ({_r}{_sfx})"
         
         fig_sens = chart_sensitivity_heatmap(score_df, text_df, PLOTLY_LAYOUT)
         st.plotly_chart(fig_sens, use_container_width=True)

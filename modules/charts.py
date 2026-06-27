@@ -164,8 +164,21 @@ def chart_sensitivity_heatmap(score_data: pd.DataFrame, text_data: pd.DataFrame,
         text=text_data.values,
         texttemplate="%{text}",
         textfont={"size": 10},
-        hoverongaps=False
+        hoverongaps=False,
+        colorbar=dict(
+            title=dict(text="Score", font=dict(color="#9B9B9B", size=10)),
+            tickformat=".1%",
+            tickfont=dict(size=9, color="#9B9B9B"),
+            x=1.02,
+            xanchor="left",
+            thickness=12,
+            len=0.8,
+        ),
     ))
     fig.update_layout(**{k: v for k, v in plotly_layout.items() if k != 'title'})
-    fig.update_layout(title=dict(text="Yuan & Yuan Scores Across Weighting Schemes", font=dict(size=16, color="#1D1D1F")))
+    fig.update_layout(
+        title=dict(text="Yuan & Yuan Scores Across Weighting Schemes", font=dict(size=16, color="#1D1D1F")),
+        height=max(200, score_data.shape[0] * 55 + 70),
+        margin=dict(t=50, b=20, r=110),
+    )
     return fig
