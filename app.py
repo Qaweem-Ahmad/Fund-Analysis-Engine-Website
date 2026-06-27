@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import logging
 from datetime import datetime
 from modules.data import fetch_data
 from modules.metrics import compute_core_metrics, compute_downside_metrics
@@ -129,6 +130,7 @@ def _metrics_from_returns(win_fund, win_bench, fund_names, tickers, costs, esg_g
             core_m[name] = compute_core_metrics(win_fund[ticker], win_bench, rf_annual)
             down_m[name] = compute_downside_metrics(win_fund[ticker], win_bench)
         except Exception as _e:
+            logging.warning("Metric computation skipped for fund '%s': %s", name, _e)
             continue
     if not core_m:
         return pd.DataFrame()
@@ -212,6 +214,7 @@ def compute_bootstrap_ci(fund_returns, benchmark_returns, pillar_weights,
     n_months   = len(fund_returns)
     score_records = {f: [] for f in fund_names}
     rank_records  = {f: [] for f in fund_names}
+    n_failed = 0
 
     for _ in range(n_bootstrap):
         idx = np.random.randint(0, n_months, size=n_months)
@@ -254,7 +257,15 @@ def compute_bootstrap_ci(fund_returns, benchmark_returns, pillar_weights,
                     score_records[fund].append(float(ranking.loc[fund, "TOPSIS Score (%)"]))
                     rank_records[fund].append(int(ranking.loc[fund, "Rank"]))
         except Exception as _e:
+            n_failed += 1
+            logging.warning("Bootstrap iteration failed: %s", _e)
             continue
+
+    if n_failed > 0:
+        st.warning(
+            f"Bootstrap: {n_failed} of {n_bootstrap} resamples failed and were skipped. "
+            f"Results are based on {n_bootstrap - n_failed} iterations."
+        )
 
     alpha_p = (100 - ci) / 2
     results = {}
@@ -480,7 +491,7 @@ def auto_commentary(template, **kwargs):
             unsafe_allow_html=True
         )
     except Exception as _e:
-        pass
+        logging.debug("auto_commentary render skipped (non-critical): %s", _e)
 
 
 def section_header(icon, subtitle, title, anchor=None):
@@ -1730,7 +1741,7 @@ elif page == "📋 Executive Summary":
             }).T
             st.dataframe(summary_df, use_container_width=True)
         except Exception as _e:
-            pass
+            st.warning(f"Could not render summary table: {_e}")
 
         st.markdown('<div style="height:1.5rem;"></div>', unsafe_allow_html=True)
 
@@ -1785,7 +1796,7 @@ elif page == "📋 Executive Summary":
                     </div>
                     """, unsafe_allow_html=True)
         except Exception as _e:
-            pass
+            st.warning(f"Could not render consensus ranking bars: {_e}")
 
 elif page == "Setup":
     st.markdown("# Fund Setup")
@@ -2336,7 +2347,7 @@ elif page == "Performance":
                     total=len(_fn_local), bm=_bm_ret
                 )
             except Exception as _e:
-                pass
+                logging.debug("Returns chart commentary skipped (non-critical): %s", _e)
 
             st.markdown('<div style="font-size:1rem; font-weight:600; color:#0A0A0A; margin-bottom:0.25rem; letter-spacing:-0.01em;">Drawdown Analysis</div><div style="font-size:0.875rem; color:#7A6F65; margin-bottom:0.5rem;">Peak-to-trough declines in portfolio value, highlighting maximum loss periods and recovery patterns.</div>', unsafe_allow_html=True)
             fig2 = chart_drawdown(st.session_state.fund_returns, st.session_state.benchmark_returns, COLOURS, PLOTLY_LAYOUT)
@@ -2359,7 +2370,7 @@ elif page == "Performance":
                     dc_fund=_best_dc_fund, dc=_best_dc_val
                 )
             except Exception as _e:
-                pass
+                logging.debug("Drawdown chart commentary skipped (non-critical): %s", _e)
 
             st.markdown('<div style="font-size:1rem; font-weight:600; color:#0A0A0A; margin-bottom:0.25rem; letter-spacing:-0.01em;">Rolling Sharpe Ratio</div><div style="font-size:0.875rem; color:#7A6F65; margin-bottom:0.5rem;">12-month rolling risk-adjusted return measure, showing consistency of performance over time.</div>', unsafe_allow_html=True)
             fig3 = chart_rolling_sharpe(st.session_state.fund_returns, st.session_state.rf_annual / 12, COLOURS, PLOTLY_LAYOUT)
@@ -2378,8 +2389,8 @@ elif page == "Performance":
                     n_pos=len(_funds_pos_sr), total=len(_fn_local)
                 )
             except Exception as _e:
-                pass
-        
+                logging.debug("Sharpe chart commentary skipped (non-critical): %s", _e)
+
         with tab3:
             with st.expander("ℹ️ Metric definitions"):
                 definitions = {
@@ -2943,7 +2954,7 @@ elif page == "TOPSIS":
                         </div>
                         """, unsafe_allow_html=True)
                 except Exception as _e:
-                    pass
+                    logging.debug("TOPSIS methodology cards skipped (non-critical): %s", _e)
 
         # Footer
         st.markdown("""
@@ -3091,7 +3102,7 @@ elif page == "Yuan & Yuan":
                         </div>
                         """, unsafe_allow_html=True)
                 except Exception as _e:
-                    pass
+                    logging.debug("Yuan methodology cards skipped (non-critical): %s", _e)
 
             # ── Feature 4: Recommendation Badges ──────────────────────────
             st.markdown('<div style="height:1rem;"></div>', unsafe_allow_html=True)
@@ -3150,7 +3161,7 @@ elif page == "Yuan & Yuan":
                                 unsafe_allow_html=True
                             )
                         except Exception as _e:
-                            pass
+                            st.warning(f"Badge unavailable: {_e}")
 
             # ── Feature 5: Investor-Type Summary Cards ─────────────────────
             st.markdown('<div style="height:1.5rem;"></div>', unsafe_allow_html=True)
@@ -3205,7 +3216,7 @@ elif page == "Yuan & Yuan":
                             unsafe_allow_html=True
                         )
                     except Exception as _e:
-                        pass
+                        st.warning(f"Investor card unavailable: {_e}")
 
         # Footer
         st.markdown("""
