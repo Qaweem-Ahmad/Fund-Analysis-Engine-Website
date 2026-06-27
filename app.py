@@ -842,30 +842,43 @@ def chart_return_distribution(fund_returns, colours, plotly_layout):
 
 
 def chart_correlation_heatmap(log_returns, plotly_layout):
-    """Annotated pairwise correlation matrix for all series."""
+    """Annotated pairwise correlation matrix for all series.
+    Two-trace approach: main heatmap (off-diagonal, focused scale) +
+    diagonal overlay (fixed neutral colour, shows 1.000 text).
+    """
     corr_full = log_returns.corr()
     logging.debug("Correlation matrix (unrounded):\n%s", corr_full.to_string())
     corr = corr_full.round(3)
     labels = corr.columns.tolist()
     n = len(labels)
 
-    # Mute diagonal in z so off-diagonal values fill the colour range.
-    # to_numpy(copy=True) guarantees a writable array; .astype(float) on a
-    # DataFrame can return a read-only buffer in some pandas/NumPy versions.
-    corr_z = corr_full.to_numpy(dtype=float, copy=True)
-    np.fill_diagonal(corr_z, np.nan)
+    # Writable NumPy arrays -- to_numpy(copy=True) avoids read-only buffer issues
+    corr_values = corr_full.to_numpy(dtype=float, copy=True)
 
-    # 3 dp text for off-diagonal cells; diagonal is blank (cell is already muted)
-    text_matrix = [
+    # Trace 1: off-diagonal only (diagonal = NaN, filled by overlay)
+    main_z = corr_values.copy()
+    np.fill_diagonal(main_z, np.nan)
+
+    # Trace 2: diagonal only (all other cells = NaN)
+    diag_z = np.full_like(corr_values, np.nan, dtype=float)
+    np.fill_diagonal(diag_z, 1.0)
+
+    # Text matrices: no overlap between traces
+    off_diag_text = [
         ["" if r == c else f"{corr.iloc[r, c]:.3f}" for c in range(n)]
         for r in range(n)
     ]
+    diag_text = [
+        ["1.000" if r == c else "" for c in range(n)]
+        for r in range(n)
+    ]
 
+    # Trace 1: main heatmap -- off-diagonal correlations with focused colour scale
     fig = go.Figure(data=go.Heatmap(
-        z=corr_z,
+        z=main_z,
         x=labels,
         y=labels,
-        text=text_matrix,
+        text=off_diag_text,
         texttemplate="%{text}",
         textfont=dict(size=11, color="#1A1A1A"),
         colorscale=[
@@ -886,8 +899,24 @@ def chart_correlation_heatmap(log_returns, plotly_layout):
         ),
         hoverongaps=False,
     ))
+
+    # Trace 2: diagonal overlay -- fixed warm-neutral colour, "1.000" label
+    fig.add_trace(go.Heatmap(
+        z=diag_z,
+        x=labels,
+        y=labels,
+        text=diag_text,
+        texttemplate="%{text}",
+        textfont=dict(size=11, color="#6B6B6B"),
+        colorscale=[[0.0, "#F6F2EC"], [1.0, "#F6F2EC"]],
+        zmin=0.9, zmax=1.1,
+        showscale=False,
+        hoverongaps=False,
+        hovertemplate="<b>%{x}</b><br>Self-correlation: 1.000<extra></extra>",
+    ))
+
     fig.add_annotation(
-        text="Colour scale 0.80-1.00. Diagonal (self-correlation) is blank.",
+        text="Colour scale 0.80-1.00. Diagonal shows self-correlation (1.000).",
         xref="paper", yref="paper",
         x=0.0, y=-0.30,
         showarrow=False,
@@ -902,6 +931,8 @@ def chart_correlation_heatmap(log_returns, plotly_layout):
         yaxis=dict(autorange="reversed", tickfont=dict(size=10)),
         height=480,
         margin=dict(b=120, r=90),
+        plot_bgcolor="#FFFFFF",
+        showlegend=False,
     )
     return fig
 
