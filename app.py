@@ -719,7 +719,11 @@ def chart_monthly_heatmap(fund_returns, colours, plotly_layout):
     """Calendar heatmap of monthly returns, one subplot per fund."""
     funds = list(fund_returns.columns)
     n = len(funds)
-    fig = make_subplots(rows=n, cols=1, subplot_titles=funds, vertical_spacing=0.06)
+    fig = make_subplots(
+        rows=n, cols=1,
+        subplot_titles=funds,
+        vertical_spacing=0.05 / max(n - 1, 1),
+    )
     month_labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     for i, fund in enumerate(funds):
@@ -754,20 +758,30 @@ def chart_monthly_heatmap(fund_returns, colours, plotly_layout):
                 zmid=0,
                 showscale=(i == 0),
                 colorbar=dict(
-                    title="Return %",
-                    len=1 / n,
-                    y=1 - (i / n) - (0.5 / n),
+                    title=dict(text="Return %", font=dict(size=10)),
+                    len=0.75,
+                    y=0.5,
+                    yanchor="middle",
+                    thickness=12,
                     tickfont=dict(size=9),
+                    x=1.02,
+                    xanchor="left",
                 ),
                 name=fund,
             ),
             row=i + 1, col=1
         )
+    # Compact tick fonts across all axes
+    fig.update_xaxes(tickfont=dict(size=9))
+    fig.update_yaxes(tickfont=dict(size=9))
+    # Smaller subplot panel titles
+    fig.update_annotations(font_size=11)
     layout = {k: v for k, v in plotly_layout.items() if k != "title"}
     fig.update_layout(**layout)
     fig.update_layout(
         title=dict(text="Monthly Returns Heatmap"),
-        height=220 * n,
+        height=160 * n,
+        margin=dict(r=90),
         paper_bgcolor="#FFFFFF",
         plot_bgcolor="#FDFCFB",
     )
@@ -826,9 +840,8 @@ def chart_correlation_heatmap(log_returns, plotly_layout):
         ],
         zmin=-1, zmax=1,
         colorbar=dict(
-            title="Correlation",
+            title=dict(text="Correlation", font=dict(color="#9B9B9B")),
             tickfont=dict(color="#9B9B9B"),
-            titlefont=dict(color="#9B9B9B"),
         ),
         hoverongaps=False,
     ))
