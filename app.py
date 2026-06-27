@@ -670,7 +670,10 @@ def chart_drawdown_recovery(fund_returns, benchmark_returns, colours, plotly_lay
     fig = go.Figure()
     all_series = dict(fund_returns)
     all_series["Benchmark"] = benchmark_returns
-    for name, returns in all_series.items():
+    # Stagger annotation offsets so labels spread out and reduce overlap
+    _ax = [35, -45, 55, -30, 45]
+    _ay = [-22, -38, -12, -50, -28]
+    for idx, (name, returns) in enumerate(all_series.items()):
         colour = colours.get(name, "#9B9B9B")
         wealth = np.exp(returns.cumsum())
         peak = wealth.cummax()
@@ -696,7 +699,7 @@ def chart_drawdown_recovery(fund_returns, benchmark_returns, colours, plotly_lay
             arrowhead=2,
             arrowcolor=colour,
             arrowsize=0.8,
-            ax=30, ay=-20,
+            ax=_ax[idx % len(_ax)], ay=_ay[idx % len(_ay)],
             font=dict(size=9, color=colour),
             bgcolor="rgba(255,255,255,0.85)",
             bordercolor=colour,
@@ -710,7 +713,15 @@ def chart_drawdown_recovery(fund_returns, benchmark_returns, colours, plotly_lay
         title=dict(text="Drawdown Recovery Timeline"),
         xaxis=dict(title="Date", gridcolor="#F0EFEC"),
         yaxis=dict(title="Drawdown (%)", gridcolor="#F0EFEC"),
-        height=480,
+        height=560,
+        legend=dict(
+            orientation="h",
+            yanchor="top",
+            y=-0.12,
+            xanchor="center",
+            x=0.5,
+        ),
+        margin=dict(b=75),
     )
     return fig
 
