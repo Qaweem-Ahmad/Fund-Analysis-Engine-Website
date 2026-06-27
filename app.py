@@ -3771,7 +3771,20 @@ elif page == "Sensitivity & Report":
                 """, unsafe_allow_html=True)
         
         st.markdown('<hr style="border:none; border-top: 1px solid #E8DDD3; margin: 1.5rem 0;">', unsafe_allow_html=True)
-        
+
+        # Auto-compute rankings if the user navigated here without visiting the TOPSIS/Yuan pages
+        if st.session_state.yuan_ranking is None:
+            _pw_base = st.session_state.pillar_weights or {'Returns': 40, 'Risk-Adj': 25, 'Risk/DD': 20, 'Costs': 10, 'ESG': 5}
+            _yr, _, _ = yuan_obj.run(_pw_base)
+            st.session_state.yuan_ranking = _yr
+        if st.session_state.topsis_ranking is None:
+            _pw_base = st.session_state.pillar_weights or {'Returns': 40, 'Risk-Adj': 25, 'Risk/DD': 20, 'Costs': 10, 'ESG': 5}
+            _tr = _inline_topsis(st.session_state.metrics_matrix, st.session_state.fund_names, _pw_base)
+            if not _tr.empty:
+                _tr = _tr.rename(columns={'TOPSIS Score (%)': 'Score'})
+                _tr['Score'] = (_tr['Score'] / 100.0).round(6)
+                st.session_state.topsis_ranking = _tr
+
         combined_df = pd.DataFrame({
             'TOPSIS Score': st.session_state.topsis_ranking['Score'],
             'TOPSIS Rank': st.session_state.topsis_ranking['Rank'],
