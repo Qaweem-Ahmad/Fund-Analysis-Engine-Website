@@ -1536,6 +1536,24 @@ div[data-testid="stHorizontalBlock"] .stButton > button:hover span,
 div[data-testid="stHorizontalBlock"] .stButton > button:hover div {
     color: #FFFFFF !important;
 }
+.export-dl-btn {
+    display: block;
+    background-color: #154D57;
+    color: #FFFFFF !important;
+    text-align: center;
+    padding: 0.55rem 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-decoration: none !important;
+    margin-top: 0.75rem;
+    transition: background-color 0.15s ease;
+}
+.export-dl-btn:hover {
+    background-color: #1A6070;
+    color: #FFFFFF !important;
+    text-decoration: none !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -3783,6 +3801,13 @@ elif page == "🗃️ Raw Data":
         st.markdown("## 🗃️ Raw Data")
         st.markdown('<p style="font-size:0.85rem;color:#9B9B9B;margin-bottom:2rem;">Download the underlying data used in this analysis as CSV files.</p>', unsafe_allow_html=True)
 
+        def _csv_link(csv_str, file_name, label):
+            _b64 = base64.b64encode(csv_str.encode("utf-8")).decode()
+            return (
+                f'<a class="export-dl-btn" href="data:text/csv;base64,{_b64}" '
+                f'download="{file_name}">{label}</a>'
+            )
+
         tab1, tab2, tab3, tab4 = st.tabs([
             "📈 Monthly Returns",
             "📊 Core Metrics",
@@ -3794,49 +3819,25 @@ elif page == "🗃️ Raw Data":
             st.markdown('<p style="font-size:0.78rem;color:#9B9B9B;margin-bottom:0.75rem;">Monthly log returns for all funds and the benchmark.</p>', unsafe_allow_html=True)
             log_returns = st.session_state.log_returns
             st.dataframe(log_returns.round(6), use_container_width=True)
-            st.download_button(
-                "⬇️ Download Monthly Returns CSV",
-                data=log_returns.round(6).to_csv(),
-                file_name="monthly_log_returns.csv",
-                mime="text/csv",
-                key="dl_returns_csv"
-            )
+            st.markdown(_csv_link(log_returns.round(6).to_csv(), "monthly_log_returns.csv", "Download Monthly Returns CSV"), unsafe_allow_html=True)
 
         with tab2:
             st.markdown('<p style="font-size:0.78rem;color:#9B9B9B;margin-bottom:0.75rem;">Core risk-adjusted performance metrics for each fund.</p>', unsafe_allow_html=True)
             core_df = st.session_state.core_metrics_df
             st.dataframe(core_df.round(4), use_container_width=True)
-            st.download_button(
-                "⬇️ Download Core Metrics CSV",
-                data=core_df.round(4).to_csv(),
-                file_name="core_metrics.csv",
-                mime="text/csv",
-                key="dl_core_csv"
-            )
+            st.markdown(_csv_link(core_df.round(4).to_csv(), "core_metrics.csv", "Download Core Metrics CSV"), unsafe_allow_html=True)
 
         with tab3:
             st.markdown('<p style="font-size:0.78rem;color:#9B9B9B;margin-bottom:0.75rem;">Downside risk and capture metrics for each fund.</p>', unsafe_allow_html=True)
             down_df = st.session_state.downside_df
             st.dataframe(down_df.round(4), use_container_width=True)
-            st.download_button(
-                "⬇️ Download Downside Metrics CSV",
-                data=down_df.round(4).to_csv(),
-                file_name="downside_metrics.csv",
-                mime="text/csv",
-                key="dl_down_csv"
-            )
+            st.markdown(_csv_link(down_df.round(4).to_csv(), "downside_metrics.csv", "Download Downside Metrics CSV"), unsafe_allow_html=True)
 
         with tab4:
             st.markdown('<p style="font-size:0.78rem;color:#9B9B9B;margin-bottom:0.75rem;">The full 19-metric evaluation matrix used as input to TOPSIS and Yuan & Yuan.</p>', unsafe_allow_html=True)
             matrix = st.session_state.metrics_matrix
             st.dataframe(matrix.round(4), use_container_width=True)
-            st.download_button(
-                "⬇️ Download Full Matrix CSV",
-                data=matrix.round(4).to_csv(),
-                file_name="metrics_matrix.csv",
-                mime="text/csv",
-                key="dl_matrix_csv"
-            )
+            st.markdown(_csv_link(matrix.round(4).to_csv(), "metrics_matrix.csv", "Download Full Matrix CSV"), unsafe_allow_html=True)
 
 elif page == "⚖️ Comparison":
     st.markdown("## ⚖️ Head-to-Head Fund Comparison")
