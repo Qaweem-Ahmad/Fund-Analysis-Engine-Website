@@ -2513,7 +2513,7 @@ elif page == "Performance":
             st.markdown("## Charts")
             st.markdown('<div style="font-size:1rem; font-weight:600; color:#0A0A0A; margin-bottom:0.25rem; letter-spacing:-0.01em;">Cumulative Returns</div><div style="font-size:0.875rem; color:#7A6F65; margin-bottom:0.5rem;">Total wealth index growth from January 2020 to October 2025, showing relative performance over the full period.</div>', unsafe_allow_html=True)
             fig1 = chart_cumulative_returns(st.session_state.log_returns, COLOURS, PLOTLY_LAYOUT)
-            st.plotly_chart(fig1, use_container_width=True)
+            st.plotly_chart(fig1, use_container_width=True, config={"displayModeBar": False})
             try:
                 _fn_local = st.session_state.fund_names
                 _mm = st.session_state.metrics_matrix
@@ -2535,7 +2535,7 @@ elif page == "Performance":
 
             st.markdown('<div style="font-size:1rem; font-weight:600; color:#0A0A0A; margin-bottom:0.25rem; letter-spacing:-0.01em;">Drawdown Analysis</div><div style="font-size:0.875rem; color:#7A6F65; margin-bottom:0.5rem;">Peak-to-trough declines in portfolio value, highlighting maximum loss periods and recovery patterns.</div>', unsafe_allow_html=True)
             fig2 = chart_drawdown(st.session_state.fund_returns, st.session_state.benchmark_returns, COLOURS, PLOTLY_LAYOUT)
-            st.plotly_chart(fig2, use_container_width=True)
+            st.plotly_chart(fig2, use_container_width=True, config={"displayModeBar": False})
             try:
                 _fn_local = st.session_state.fund_names
                 _mm = st.session_state.metrics_matrix
@@ -2558,7 +2558,7 @@ elif page == "Performance":
 
             st.markdown('<div style="font-size:1rem; font-weight:600; color:#0A0A0A; margin-bottom:0.25rem; letter-spacing:-0.01em;">Rolling Sharpe Ratio</div><div style="font-size:0.875rem; color:#7A6F65; margin-bottom:0.5rem;">12-month rolling risk-adjusted return measure, showing consistency of performance over time.</div>', unsafe_allow_html=True)
             fig3 = chart_rolling_sharpe(st.session_state.fund_returns, st.session_state.rf_annual / 12, COLOURS, PLOTLY_LAYOUT)
-            st.plotly_chart(fig3, use_container_width=True)
+            st.plotly_chart(fig3, use_container_width=True, config={"displayModeBar": False})
             try:
                 _fn_local = st.session_state.fund_names
                 _mm = st.session_state.metrics_matrix
