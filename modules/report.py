@@ -44,13 +44,35 @@ C_AMBER   = colors.HexColor('#FEF3C7')
 # so a higher (less negative) value = less severe drawdown = better.
 _HIGHER_IS_BETTER = frozenset([
     'Ann. Return (%)', 'Alpha (ann. %)', 'Sharpe Ratio', 'Sortino Ratio',
-    'Treynor Ratio', 'Information Ratio', 'R\u00b2', 'Upside Capture (%)',
+    'Treynor Ratio', 'Information Ratio', 'R²', 'Upside Capture (%)',
     'Calmar Ratio', 'ESG Globe Rating', 'Max Drawdown (%)',
 ])
 _LOWER_IS_BETTER = frozenset([
     'Ann. Volatility (%)', 'Beta', 'Tracking Error (%)',
     'Max DD Duration (mths)', 'Downside Capture (%)', 'OCF', 'Carbon Risk Score',
 ])
+
+# ── Per-metric display precision (decimals) ────────────────────────────────────
+_METRIC_DECIMALS = {
+    'Ann. Return (%)':        1,
+    'Ann. Volatility (%)':    1,
+    'Alpha (ann. %)':         2,
+    'Max Drawdown (%)':       1,
+    'Max DD Duration (mths)': 0,
+    'Upside Capture (%)':     1,
+    'Downside Capture (%)':   1,
+    'Tracking Error (%)':     2,
+    'Sharpe Ratio':           3,
+    'Sortino Ratio':          3,
+    'Treynor Ratio':          4,
+    'Calmar Ratio':           3,
+    'Information Ratio':      3,
+    'Beta':                   3,
+    'R²':                3,
+    'OCF':                    2,
+    'ESG Globe Rating':       1,
+    'Carbon Risk Score':      2,
+}
 
 _REPORT_DATE = ''
 
@@ -78,6 +100,18 @@ def _ordinal(n):
 def _metric_colw(n_fund_cols, label_w=130.0):
     col = (USABLE_W - label_w) / n_fund_cols
     return [label_w] + [col] * n_fund_cols
+
+
+def _weight_str(pillar_weights):
+    """Return a human-readable weight string from pillar_weights dict."""
+    keys = ['Returns', 'Risk-Adj', 'Risk/DD', 'Costs', 'ESG']
+    if not pillar_weights:
+        return '40 / 25 / 20 / 10 / 5'
+    vals = [pillar_weights.get(k, 0) for k in keys]
+    total = sum(vals)
+    if total > 0 and total <= 1.05:
+        vals = [v * 100 for v in vals]
+    return ' / '.join(f'{int(round(v))}' for v in vals)
 
 
 # ── Page callbacks ─────────────────────────────────────────────────────────────
@@ -110,7 +144,7 @@ def _draw_cover(c, doc):
     c.rect(0, 18 * mm, PAGE_W, 0.5, fill=1, stroke=0)
     c.setFillColor(C_GREY)
     c.setFont('Helvetica', 7.5)
-    c.drawString(MARGIN_H, 7.5 * mm, 'CONFIDENTIAL \u00b7 FOR INTERNAL USE ONLY')
+    c.drawString(MARGIN_H, 7.5 * mm, 'CONFIDENTIAL · FOR INTERNAL USE ONLY')
     c.drawRightString(PAGE_W - MARGIN_H, 7.5 * mm, f'Generated {_REPORT_DATE}')
 
 
@@ -121,7 +155,7 @@ def _draw_inner(c, doc):
     c.setFillColor(C_GREY)
     c.setFont('Helvetica', 7.5)
     c.drawString(MARGIN_H, y_hdr,
-                 'FUND ANALYSIS ENGINE  \u00b7  QUANTITATIVE INVESTMENT ANALYSIS')
+                 'FUND ANALYSIS ENGINE  ·  QUANTITATIVE INVESTMENT ANALYSIS')
     c.drawRightString(PAGE_W - MARGIN_H, y_hdr, _REPORT_DATE)
     c.setStrokeColor(C_BORDER)
     c.setLineWidth(0.5)
@@ -229,8 +263,9 @@ def _make_table(data, col_widths):
     return t
 
 
-def _ranking_table(data, col_widths, n_funds):
-    """Ranking table with rank-1 green and last-rank red row highlights."""
+def _ranking_table(data, col_widths, n_ranked_funds):
+    """Ranking table with rank-1 green and last-rank red row highlights.
+    n_ranked_funds excludes Benchmark (counts only actual fund peers)."""
     cmds = _base_cmds(len(data) - 1)
     for i, row in enumerate(data[1:], start=1):
         try:
@@ -238,7 +273,7 @@ def _ranking_table(data, col_widths, n_funds):
             if rank == 1:
                 cmds += [('BACKGROUND', (0, i), (-1, i), C_GREEN),
                          ('FONTNAME',   (0, i), (-1, i), 'Helvetica-Bold')]
-            elif rank == n_funds:
+            elif rank == n_ranked_funds:
                 cmds.append(('BACKGROUND', (0, i), (-1, i), C_RED))
         except (ValueError, TypeError):
             pass
@@ -324,12 +359,13 @@ def _color_legend(S):
     return [t, Spacer(1, 3 * mm)]
 
 
-# ── Metric DataFrame → table data (metrics as rows, funds as cols) ─────────────
+# ── Metric DataFrame -> table data (metrics as rows, funds as cols) ────────────
 
 def _metrics_as_rows(df: pd.DataFrame, label_col='Metric'):
     """
     df: index = fund names, columns = metric names.
     Returns table data list: row 0 = header, row r = [metric, val1, val2, ...]
+    Uses per-metric precision from _METRIC_DECIMALS.
     """
     fund_names   = list(df.index)
     metric_names = list(df.columns)
@@ -337,9 +373,10 @@ def _metrics_as_rows(df: pd.DataFrame, label_col='Metric'):
     rows   = [header]
     for metric in metric_names:
         row = [metric]
+        decimals = _METRIC_DECIMALS.get(metric, 4)
         for fund in fund_names:
             val = df.loc[fund, metric]
-            row.append(_fmt(val))
+            row.append(_fmt(val, decimals))
         rows.append(row)
     return rows
 
@@ -352,7 +389,7 @@ def _toc(S):
         ('01', 'Executive Summary',       'Key findings and fund overview'),
         ('02', 'Performance Metrics',     'Core and downside risk metrics for all funds'),
         ('03', 'Fund Rankings',           'TOPSIS and Yuan & Yuan results and comparison'),
-        ('04', 'Sensitivity Analysis',    'Rankings across five alternative weight schemes'),
+        ('04', 'Sensitivity Analysis',    'Rankings across four alternative weight schemes'),
         ('05', 'Methodology',             'Algorithm descriptions and metric glossary'),
         ('06', 'Disclaimer & Sources',    'Data provenance and regulatory notices'),
     ]
@@ -555,6 +592,7 @@ def generate_pdf(
     yuan_ranking: pd.DataFrame,
     combined_df: pd.DataFrame,
     sensitivity_table: pd.DataFrame,
+    pillar_weights: dict = None,
 ) -> bytes:
 
     global _REPORT_DATE
@@ -601,7 +639,7 @@ def generate_pdf(
                             S['cover_meta']))
     story.append(Paragraph(
         '<b>Methodologies:</b>  TOPSIS (Hwang &amp; Yoon, 1981)  '
-        '\u00b7  Yuan &amp; Yuan Eigenvector (2023)',
+        '·  Yuan &amp; Yuan Eigenvector (2023)',
         S['cover_meta']))
     story.append(Paragraph('<b>Prepared by:</b>  Qaweem Ahmad',
                             S['cover_meta']))
@@ -637,7 +675,7 @@ def generate_pdf(
         'metrics over the period <b>' + sample_period + '</b>. Two independent '
         'multi-criteria ranking methodologies -- TOPSIS and the Yuan &amp; Yuan '
         'eigenvector method -- are applied to deliver robust, cross-validated '
-        'rankings. A five-scheme sensitivity analysis tests the stability of '
+        'rankings. A four-scheme sensitivity analysis tests the stability of '
         'results under alternative weight allocations.',
         S['body']))
 
@@ -655,33 +693,43 @@ def generate_pdf(
     # ═══════════════════════════════════════════════════════════════════════
     story += _section_hdr('Section 02', 'Performance Metrics', S)
 
-    story.append(Paragraph('Core Risk-Adjusted Metrics', S['subsection']))
-    story.append(Paragraph(
-        'Annualised return, volatility, Sharpe ratio, information ratio, '
-        'and regression-based metrics computed over the full sample period. '
-        'Risk-free rate: 5% p.a. (annualised). Benchmark: MSCI EM (EEM proxy).',
-        S['body']))
-    story += _color_legend(S)
-
+    # Core metrics: wrap heading + intro + legend together to prevent orphans
     core_row_data = _metrics_as_rows(core_metrics_df, label_col='Metric')
     n_fund_cols   = len(core_metrics_df.index)
     core_colw     = _metric_colw(n_fund_cols, label_w=max(120.0, USABLE_W * 0.30))
+
+    core_intro = [
+        Paragraph('Core Risk-Adjusted Metrics', S['subsection']),
+        Paragraph(
+            'Annualised return, volatility, Sharpe ratio, information ratio, '
+            'and regression-based metrics computed over the full sample period. '
+            'Risk-free rate: 5% p.a. (annualised). Benchmark: MSCI EM (EEM proxy). '
+            'Benchmark is included as a reference column only.',
+            S['body']),
+    ]
+    core_intro += _color_legend(S)
+    story.append(KeepTogether(core_intro))
     story.append(KeepTogether([
         _color_metrics_table(core_row_data, core_colw),
         Spacer(1, 4 * mm),
     ]))
 
-    story.append(Paragraph('Downside Risk Metrics', S['subsection']))
-    story.append(Paragraph(
-        'Tail-risk characteristics including maximum drawdown, drawdown '
-        'duration, Sortino ratio, Calmar ratio, and up/down capture ratios '
-        'relative to the benchmark. ESG and cost metrics are included.',
-        S['body']))
-    story += _color_legend(S)
-
+    # Downside metrics: wrap heading + intro + legend together to prevent orphans
     down_row_data = _metrics_as_rows(downside_df, label_col='Metric')
     n_down_cols   = len(downside_df.index)
     down_colw     = _metric_colw(n_down_cols, label_w=max(120.0, USABLE_W * 0.30))
+
+    down_intro = [
+        Paragraph('Downside Risk Metrics', S['subsection']),
+        Paragraph(
+            'Tail-risk characteristics including maximum drawdown, drawdown '
+            'duration, Sortino ratio, Calmar ratio, and up/down capture ratios '
+            'relative to the benchmark. ESG and cost metrics are included. '
+            'Benchmark is included as a reference column only.',
+            S['body']),
+    ]
+    down_intro += _color_legend(S)
+    story.append(KeepTogether(down_intro))
     story.append(KeepTogether([
         _color_metrics_table(down_row_data, down_colw),
         Spacer(1, 4 * mm),
@@ -693,10 +741,11 @@ def generate_pdf(
     # ═══════════════════════════════════════════════════════════════════════
     story += _section_hdr('Section 03', 'Fund Rankings', S)
 
-    # Filter topsis_ranking to fund names only
-    all_fund_names_set = set(fund_names) | {'Benchmark'}
+    # Restrict ranking tables to actual fund peers only (exclude Benchmark)
+    peer_set = set(fund_names)
+
     topsis_funds = topsis_ranking.loc[
-        topsis_ranking.index.isin(all_fund_names_set)
+        topsis_ranking.index.isin(peer_set)
     ].copy().sort_values('Rank')
 
     # TOPSIS
@@ -705,7 +754,8 @@ def generate_pdf(
         'Closeness coefficients range 0 to 1; a higher value indicates '
         'superior proximity to the ideal solution across all weighted criteria. '
         '<font color="#1A7A4A"><b>Rank 1 highlighted in green</b></font>; '
-        '<font color="#C0392B">last rank in red</font>.',
+        '<font color="#C0392B">last rank in red</font>. '
+        'Benchmark is excluded from rankings (peer evaluation only).',
         S['body']))
 
     t_data = [['Fund', 'Closeness Coefficient', 'Rank']]
@@ -735,11 +785,12 @@ def generate_pdf(
     story.append(Paragraph(
         'Eigenvector-derived scores from pairwise competitive comparisons '
         'across all criteria. Scores form a ratio scale invariant to linear '
-        'transformations of the underlying data.',
+        'transformations of the underlying data. '
+        'Benchmark is excluded from rankings (peer evaluation only).',
         S['body']))
 
     yuan_funds = yuan_ranking.loc[
-        yuan_ranking.index.isin(all_fund_names_set)
+        yuan_ranking.index.isin(peer_set)
     ].copy().sort_values('Rank')
 
     y_data = [['Fund', 'Eigenvector Score', 'Rank']]
@@ -817,10 +868,11 @@ def generate_pdf(
     # ═══════════════════════════════════════════════════════════════════════
     story += _section_hdr('Section 04', 'Sensitivity Analysis', S)
     story.append(Paragraph(
-        'Rankings are recomputed under five alternative metric-weight schemes '
+        'Rankings are recomputed under four alternative metric-weight schemes '
         'to assess robustness. Consistent ranks across all schemes signal a '
         'reliable result; variation indicates sensitivity to the weighting '
-        'assumptions. Each cell shows the TOPSIS score and rank in parentheses.',
+        'assumptions. Each cell shows the Yuan & Yuan score share (as % of '
+        'total eigenvector weight) and rank in parentheses.',
         S['body']))
 
     sa_fund_cols  = list(sensitivity_table.columns)
@@ -838,8 +890,13 @@ def generate_pdf(
 
     story.append(KeepTogether([
         _make_table(sa_data, sa_colw),
-        Spacer(1, 4 * mm),
+        Spacer(1, 2 * mm),
     ]))
+    story.append(Paragraph(
+        'Score values are Yuan & Yuan eigenvector score shares normalised to sum to 1 '
+        'across all funds, expressed as a percentage. '
+        'Rank shown in parentheses. Benchmark is excluded.',
+        S['note']))
     story.append(PageBreak())
 
     # ═══════════════════════════════════════════════════════════════════════
@@ -856,14 +913,14 @@ def generate_pdf(
         '(3) Identify the positive ideal solution (PIS) and negative ideal '
         'solution (NIS) for each criterion. '
         '(4) Compute each alternative\'s Euclidean distance from the PIS '
-        '(D\u207a) and NIS (D\u207b). '
-        '(5) Derive the closeness coefficient C* = D\u207b / (D\u207a + D\u207b); '
+        '(D_plus) and NIS (D_minus). '
+        '(5) Derive the closeness coefficient C* = D_minus / (D_plus + D_minus); '
         'a higher C* reflects superior overall performance.',
         S['body']))
 
     story.append(Paragraph('Yuan &amp; Yuan Eigenvector Method', S['subsection']))
     story.append(Paragraph(
-        'Yuan &amp; Yuan (2023) construct an n \u00d7 n pairwise competition '
+        'Yuan &amp; Yuan (2023) construct an n x n pairwise competition '
         'matrix C where element c(i, j) reflects the competitive performance '
         'of fund i against fund j across all selected metrics simultaneously. '
         'The principal eigenvector of C is extracted via power iteration; '
@@ -873,42 +930,66 @@ def generate_pdf(
         S['body']))
 
     story.append(Paragraph('Weighting Structure', S['subsection']))
+    w_str = _weight_str(pillar_weights)
     story.append(Paragraph(
         'Criterion weights are allocated across five pillars: Returns, '
         'Risk-Adjusted Performance, Risk &amp; Drawdown, Costs, and ESG. '
         'Within each pillar, weight is distributed equally across its component '
-        'metrics. The default allocation is 30 / 30 / 20 / 10 / 10 '
+        f'metrics. The active allocation used in this report is {w_str} '
         '(Returns / Risk-Adj / Risk-DD / Costs / ESG).',
         S['body']))
 
-    story.append(Paragraph('Performance Metrics Glossary', S['subsection']))
+    # Glossary: wrap heading + table together to prevent orphan heading
     mdef = [
         ['Metric', 'Definition'],
-        ['Ann. Return (%)',       'Geometric mean of monthly log returns annualised: (exp(\u0305r \u00d7 12) \u2212 1) \u00d7 100'],
-        ['Ann. Volatility (%)',   'Monthly return standard deviation scaled by \u221a12, expressed as %'],
-        ['Sharpe Ratio',          '(Annualised excess return) / (Annualised volatility); Rf = 5% p.a.'],
-        ['Alpha (ann. %)',        "Annualised Jensen's alpha from OLS regression on benchmark excess returns"],
-        ['Beta',                  'Market beta from OLS regression on the benchmark; 1.0 = full benchmark exposure'],
-        ['R\u00b2',               'Coefficient of determination from the OLS regression; higher = more benchmark-driven'],
-        ['Sortino Ratio',         'Annualised excess return / downside semi-deviation (negative returns only)'],
-        ['Treynor Ratio',         'Annualised excess return / beta; reward per unit of market risk'],
-        ['Information Ratio',     'Annualised active return / tracking error; consistency of outperformance'],
-        ['Tracking Error (%)',    'Standard deviation of active returns (fund minus benchmark), annualised'],
-        ['Max Drawdown (%)',      'Largest peak-to-trough decline in the cumulative log-return NAV; stored as negative'],
-        ['Max DD Duration (mths)','Longest consecutive period (months) below the prior NAV peak'],
-        ['Calmar Ratio',          'Annualised return / |Max Drawdown| (higher = better risk-adjusted outcome)'],
-        ['Upside Capture (%)',    'Fund / benchmark return in benchmark up-months; >100% = outperforms in rallies'],
-        ['Downside Capture (%)', 'Fund / benchmark return in benchmark down-months; <100% = limits losses better'],
-        ['OCF',                   'Ongoing Charges Figure; total annual cost as % of NAV'],
-        ['ESG Globe Rating',      'Morningstar sustainability rating 1\u20135 globes (5 = most sustainable)'],
-        ['Carbon Risk Score',     'Sustainalytics carbon risk score (lower = less exposed to transition risk)'],
+        ['Ann. Return (%)',
+         'Geometric mean of monthly log returns annualised: (exp(r_bar x 12) - 1) x 100'],
+        ['Ann. Volatility (%)',
+         'Monthly return standard deviation scaled by sqrt(12), expressed as %'],
+        ['Sharpe Ratio',
+         '(Annualised excess return) / (Annualised volatility); Rf = 5% p.a.'],
+        ['Alpha (ann. %)',
+         "Annualised Jensen's alpha from OLS regression on benchmark excess returns"],
+        ['Beta',
+         'Market beta from OLS regression on the benchmark; 1.0 = full benchmark exposure'],
+        ['R²',
+         'Coefficient of determination from the OLS regression; higher = more benchmark-driven'],
+        ['Sortino Ratio',
+         'Annualised excess return / downside semi-deviation (negative returns only)'],
+        ['Treynor Ratio',
+         'Annualised excess return / beta; reward per unit of market risk'],
+        ['Information Ratio',
+         'Annualised active return / tracking error; consistency of outperformance'],
+        ['Tracking Error (%)',
+         'Standard deviation of active returns (fund minus benchmark), annualised'],
+        ['Max Drawdown (%)',
+         'Largest peak-to-trough decline in the cumulative log-return NAV; stored as negative'],
+        ['Max DD Duration (mths)',
+         'Longest consecutive period (months) below the prior NAV peak'],
+        ['Calmar Ratio',
+         'Annualised return / |Max Drawdown| (higher = better risk-adjusted outcome)'],
+        ['Upside Capture (%)',
+         'Fund / benchmark return in benchmark up-months; >100% = outperforms in rallies'],
+        ['Downside Capture (%)',
+         'Fund / benchmark return in benchmark down-months; <100% = limits losses better'],
+        ['OCF',
+         'Ongoing Charges Figure; total annual cost as % of NAV'],
+        ['ESG Globe Rating',
+         'Morningstar sustainability rating 1-5 globes (5 = most sustainable)'],
+        ['Carbon Risk Score',
+         'Sustainalytics carbon risk score (lower = less exposed to transition risk)'],
     ]
-    md_colw = [USABLE_W * 0.30, USABLE_W * 0.70]
+    md_colw = [USABLE_W * 0.28, USABLE_W * 0.72]
     md_cmds = _base_cmds(len(mdef) - 1)
     md_cmds += [('ALIGN', (1, 1), (1, -1), 'LEFT')]
     md_t = Table(mdef, colWidths=md_colw, hAlign='LEFT')
     md_t.setStyle(TableStyle(md_cmds))
-    story.append(KeepTogether([md_t, Spacer(1, 4 * mm)]))
+    # KeepTogether prevents the heading from stranding at bottom of a page
+    story.append(KeepTogether([
+        Paragraph('Performance Metrics Glossary', S['subsection']),
+        md_t,
+        Spacer(1, 4 * mm),
+    ]))
     story.append(PageBreak())
 
     # ═══════════════════════════════════════════════════════════════════════
@@ -935,10 +1016,11 @@ def generate_pdf(
         'accept no liability for any loss arising from reliance on this report.',
         '<b>Benchmark.</b>  Where referenced, the benchmark is the MSCI Emerging '
         'Markets Index total return (USD), proxied via the iShares MSCI Emerging '
-        'Markets ETF (EEM).',
+        'Markets ETF (EEM). The benchmark appears in metrics tables as a reference '
+        'comparator only and is not included in fund rankings.',
         '<b>Academic References.</b>  Hwang, C.-L. and Yoon, K. (1981). '
         '<i>Multiple Attribute Decision Making: Methods and Applications</i>. '
-        'Springer. \u00b7  Yuan, Y. and Yuan, J. (2023). A new approach to '
+        'Springer. ·  Yuan, Y. and Yuan, J. (2023). A new approach to '
         'fund performance evaluation. <i>Journal of Portfolio Management</i>.',
     ]
     for p in disclaimers:
@@ -949,8 +1031,8 @@ def generate_pdf(
     story.append(HRFlowable(width='100%', thickness=0.5, color=C_BORDER,
                              spaceAfter=4))
     story.append(Paragraph(
-        f'Fund Analysis Engine  \u00b7  Report generated {_REPORT_DATE}'
-        '  \u00b7  CONFIDENTIAL',
+        f'Fund Analysis Engine  ·  Report generated {_REPORT_DATE}'
+        '  ·  CONFIDENTIAL',
         S['note']))
 
     doc.build(story)

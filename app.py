@@ -288,9 +288,10 @@ def compute_bootstrap_ci(fund_returns, benchmark_returns, pillar_weights,
 
 def generate_excel(fund_names, sample_period, core_metrics_df, downside_df,
                    topsis_ranking, yuan_ranking, metrics_matrix,
-                   naive_ranking=None, borda_ranking=None):
+                   naive_ranking=None, borda_ranking=None,
+                   combined_df=None, sensitivity_df=None, pillar_weights=None):
     """
-    Generates a formatted .xlsx file with multiple sheets.
+    Generates a formatted .xlsx workbook with multiple sheets.
     Returns bytes.
     """
     import io
@@ -307,22 +308,37 @@ def generate_excel(fund_names, sample_period, core_metrics_df, downside_df,
     WHITE      = "FFFFFF"
     GREEN_BG   = "D4EDDA"
     RED_BG     = "FAE0E0"
+    AMBER_BG   = "FEF3C7"
+    GREY_FG    = "7A6F65"
 
     header_font    = Font(name="Calibri", bold=True, color=WHITE, size=10)
     header_fill    = PatternFill("solid", fgColor=TEAL)
     subheader_font = Font(name="Calibri", bold=True, color=TEAL, size=10)
     subheader_fill = PatternFill("solid", fgColor=TEAL_LIGHT)
     body_font      = Font(name="Calibri", size=10)
+    note_font      = Font(name="Calibri", italic=True, size=9, color=GREY_FG)
     title_font     = Font(name="Calibri", bold=True, size=13, color=TEAL)
     warm_fill      = PatternFill("solid", fgColor=WARM)
     green_fill     = PatternFill("solid", fgColor=GREEN_BG)
     red_fill       = PatternFill("solid", fgColor=RED_BG)
-    center         = Alignment(horizontal="center", vertical="center")
-    left           = Alignment(horizontal="left", vertical="center")
-    right_align    = Alignment(horizontal="right", vertical="center")
+    amber_fill     = PatternFill("solid", fgColor=AMBER_BG)
+    center         = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    left           = Alignment(horizontal="left",   vertical="center")
+    right_align    = Alignment(horizontal="right",  vertical="center")
 
-    thin   = Side(style="thin", color=BORDER_COL)
+    thin   = Side(style="thin",   color=BORDER_COL)
+    med    = Side(style="medium", color=TEAL)
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    def _pillar_weight_str():
+        if not pillar_weights:
+            return "40 / 25 / 20 / 10 / 5"
+        keys = ['Returns', 'Risk-Adj', 'Risk/DD', 'Costs', 'ESG']
+        vals = [pillar_weights.get(k, 0) for k in keys]
+        total = sum(vals)
+        if total > 0 and total <= 1.05:
+            vals = [v * 100 for v in vals]
+        return " / ".join(f"{int(round(v))}" for v in vals)
 
     def style_header_row(ws, row_num, n_cols):
         for col in range(1, n_cols + 1):
@@ -331,17 +347,18 @@ def generate_excel(fund_names, sample_period, core_metrics_df, downside_df,
             cell.fill      = header_fill
             cell.alignment = center
             cell.border    = border
+        ws.row_dimensions[row_num].height = 22
 
-    def style_data_row(ws, row_num, n_cols, zebra=False):
+    def style_data_row(ws, row_num, n_cols, zebra=False, first_left=True):
         fill = warm_fill if zebra else PatternFill("solid", fgColor=WHITE)
         for col in range(1, n_cols + 1):
             cell = ws.cell(row=row_num, column=col)
             cell.font      = body_font
             cell.fill      = fill
-            cell.alignment = right_align if col > 1 else left
+            cell.alignment = (left if (col == 1 and first_left) else right_align)
             cell.border    = border
 
-    def auto_width(ws, min_w=10, max_w=35):
+    def auto_width(ws, min_w=10, max_w=40):
         for col in ws.columns:
             length = max(len(str(cell.value or "")) for cell in col)
             ws.column_dimensions[get_column_letter(col[0].column)].width = min(max(length + 2, min_w), max_w)
@@ -353,6 +370,10 @@ def generate_excel(fund_names, sample_period, core_metrics_df, downside_df,
         for col_idx, h in enumerate(headers, 1):
             ws.cell(row=start_row, column=col_idx, value=h)
         style_header_row(ws, start_row, len(headers))
+        ws.auto_filter.ref = (
+            f"A{start_row}:{get_column_letter(len(headers))}{start_row}"
+        )
+        ws.freeze_panes = ws.cell(row=start_row + 1, column=2)
         start_row += 1
         for row_idx, (idx, row) in enumerate(df.iterrows()):
             ws.cell(row=start_row, column=1, value=str(idx))
@@ -365,30 +386,81 @@ def generate_excel(fund_names, sample_period, core_metrics_df, downside_df,
             start_row += 1
         return start_row
 
-    # Sheet 1: Summary
+    # ── Sheet 1: Summary ──────────────────────────────────────────────────────
     ws1 = wb.active
     ws1.title = "Summary"
-    ws1.cell(row=1, column=1, value="Fund Analysis Engine  -  Summary Report").font = Font(
+    ws1.cell(row=1, column=1, value="Fund Analysis Engine - Summary Report").font = Font(
         name="Calibri", bold=True, size=16, color=TEAL)
     ws1.cell(row=2, column=1, value=f"Sample Period: {sample_period}").font = body_font
     ws1.cell(row=3, column=1, value=f"Funds: {', '.join(fund_names)}").font = body_font
     ws1.cell(row=4, column=1, value=f"Generated: {pd.Timestamp.now().strftime('%d %B %Y')}").font = body_font
     ws1.cell(row=5, column=1, value="Prepared by: Qaweem Ahmad").font = body_font
-    ws1.row_dimensions[1].height = 24
+    ws1.row_dimensions[1].height = 26
 
+    # Top results block
     row = 7
+    ws1.cell(row=row, column=1, value="Key Results").font = subheader_font
+    ws1.cell(row=row, column=1).fill = subheader_fill
+    row += 1
+
+    peer_set      = set(fund_names)
+    t_peer        = topsis_ranking.loc[topsis_ranking.index.isin(peer_set)]
+    y_peer        = yuan_ranking.loc[yuan_ranking.index.isin(peer_set)]
+
+    def _safe_best(df, col, ascending=True):
+        try:
+            s = df[col].astype(float)
+            return s.idxmin() if ascending else s.idxmax()
+        except Exception:
+            return "-"
+
+    top_topsis = _safe_best(t_peer, "Rank", ascending=True)
+    top_yuan   = _safe_best(y_peer, "Rank", ascending=True)
+
+    def _safe_metric_best(mdf, metric, ascending=True):
+        try:
+            s = mdf[metric].astype(float)
+            return s.idxmin() if ascending else s.idxmax()
+        except Exception:
+            return "-"
+
+    # core_metrics_df: index=fund names, columns=metrics -- access column directly, no transpose
+    _cm_peer = core_metrics_df.loc[core_metrics_df.index.isin(peer_set)]
+    _dm_peer = downside_df.loc[downside_df.index.isin(peer_set)]
+    best_sharpe = _safe_metric_best(_cm_peer, "Sharpe Ratio", ascending=False)
+    best_alpha  = _safe_metric_best(_cm_peer, "Alpha (ann. %)", ascending=False)
+    best_dd     = _safe_metric_best(_dm_peer, "Max Drawdown (%)", ascending=False)
+
+    top_rows = [
+        ("Top Ranked Fund (TOPSIS)",     str(top_topsis)),
+        ("Top Ranked Fund (Yuan & Yuan)", str(top_yuan)),
+        ("Best Sharpe Ratio",            str(best_sharpe)),
+        ("Best Alpha",                   str(best_alpha)),
+        ("Least Severe Max Drawdown",    str(best_dd)),
+        ("Pillar Weights (R/RA/RD/C/E)", _pillar_weight_str()),
+    ]
+    for col_idx, h in enumerate(["Metric", "Value"], 1):
+        ws1.cell(row=row, column=col_idx, value=h)
+    style_header_row(ws1, row, 2)
+    row += 1
+    for i, (label, val) in enumerate(top_rows):
+        ws1.cell(row=row, column=1, value=label)
+        ws1.cell(row=row, column=2, value=val)
+        style_data_row(ws1, row, 2, zebra=(i % 2 == 1))
+        ws1.cell(row=row, column=2).alignment = left
+        row += 1
+
+    row += 1
     ws1.cell(row=row, column=1, value="TOPSIS Rankings").font = subheader_font
     ws1.cell(row=row, column=1).fill = subheader_fill
     row += 1
 
-    topsis_funds = topsis_ranking.loc[topsis_ranking.index.isin(set(fund_names))]
-    topsis_display = topsis_funds.sort_values("Rank") if "Rank" in topsis_funds.columns else topsis_funds
-
-    for col_idx, h in enumerate(["Fund", "TOPSIS Score", "Rank"], 1):
+    topsis_display = t_peer.sort_values("Rank") if "Rank" in t_peer.columns else t_peer
+    n_t = len(topsis_display)
+    for col_idx, h in enumerate(["Fund", "Closeness Coefficient", "Rank"], 1):
         ws1.cell(row=row, column=col_idx, value=h)
     style_header_row(ws1, row, 3)
     row += 1
-
     for i, (idx, r) in enumerate(topsis_display.iterrows()):
         score_col = "Score" if "Score" in r.index else r.index[0]
         rank_val  = int(r.get("Rank", i + 1))
@@ -397,10 +469,12 @@ def generate_excel(fund_names, sample_period, core_metrics_df, downside_df,
         ws1.cell(row=row, column=2, value=score_val)
         ws1.cell(row=row, column=3, value=rank_val)
         for col in range(1, 4):
-            ws1.cell(row=row, column=col).font   = body_font
-            ws1.cell(row=row, column=col).border = border
-            ws1.cell(row=row, column=col).fill   = green_fill if rank_val == 1 else (
-                red_fill if rank_val == len(fund_names) else
+            ws1.cell(row=row, column=col).font      = body_font
+            ws1.cell(row=row, column=col).border    = border
+            ws1.cell(row=row, column=col).alignment = (left if col == 1 else right_align)
+            ws1.cell(row=row, column=col).fill = (
+                green_fill if rank_val == 1 else
+                red_fill   if rank_val == n_t else
                 PatternFill("solid", fgColor=WHITE if i % 2 == 0 else WARM))
         row += 1
 
@@ -409,14 +483,12 @@ def generate_excel(fund_names, sample_period, core_metrics_df, downside_df,
     ws1.cell(row=row, column=1).fill = subheader_fill
     row += 1
 
-    yuan_funds   = yuan_ranking.loc[yuan_ranking.index.isin(set(fund_names))]
-    yuan_display = yuan_funds.sort_values("Rank") if "Rank" in yuan_funds.columns else yuan_funds
-
-    for col_idx, h in enumerate(["Fund", "Yuan Score", "Rank"], 1):
+    yuan_display = y_peer.sort_values("Rank") if "Rank" in y_peer.columns else y_peer
+    n_y = len(yuan_display)
+    for col_idx, h in enumerate(["Fund", "Eigenvector Score", "Rank"], 1):
         ws1.cell(row=row, column=col_idx, value=h)
     style_header_row(ws1, row, 3)
     row += 1
-
     for i, (idx, r) in enumerate(yuan_display.iterrows()):
         score_col = "Score" if "Score" in r.index else r.index[0]
         rank_val  = int(r.get("Rank", i + 1))
@@ -424,39 +496,172 @@ def generate_excel(fund_names, sample_period, core_metrics_df, downside_df,
         ws1.cell(row=row, column=2, value=round(float(r.get(score_col, 0)), 6))
         ws1.cell(row=row, column=3, value=rank_val)
         for col in range(1, 4):
-            ws1.cell(row=row, column=col).font   = body_font
-            ws1.cell(row=row, column=col).border = border
-            ws1.cell(row=row, column=col).fill   = green_fill if rank_val == 1 else (
-                red_fill if rank_val == len(fund_names) else
+            ws1.cell(row=row, column=col).font      = body_font
+            ws1.cell(row=row, column=col).border    = border
+            ws1.cell(row=row, column=col).alignment = (left if col == 1 else right_align)
+            ws1.cell(row=row, column=col).fill = (
+                green_fill if rank_val == 1 else
+                red_fill   if rank_val == n_y else
                 PatternFill("solid", fgColor=WHITE if i % 2 == 0 else WARM))
         row += 1
 
     auto_width(ws1)
 
-    # Sheet 2: Core Metrics
+    # ── Sheet 2: Core Metrics ─────────────────────────────────────────────────
     ws2 = wb.create_sheet("Core Metrics")
     write_df_to_sheet(ws2, core_metrics_df, "Core Risk-Adjusted Metrics")
     auto_width(ws2)
 
-    # Sheet 3: Downside Metrics
+    # ── Sheet 3: Downside Metrics ─────────────────────────────────────────────
     ws3 = wb.create_sheet("Downside Metrics")
     write_df_to_sheet(ws3, downside_df, "Downside Risk Metrics")
     auto_width(ws3)
 
-    # Sheet 4: Full Metrics Matrix
+    # ── Sheet 4: Full Metrics Matrix ──────────────────────────────────────────
     ws4 = wb.create_sheet("Metrics Matrix")
     write_df_to_sheet(ws4, metrics_matrix, "Full 19-Metric Evaluation Matrix")
     auto_width(ws4)
 
-    # Sheet 5: All Rankings
-    ws5 = wb.create_sheet("All Rankings")
-    r5 = 1
-    if naive_ranking is not None:
-        r5 = write_df_to_sheet(ws5, naive_ranking, "Naive Ranking", start_row=r5)
-        r5 += 2
-    if borda_ranking is not None:
-        write_df_to_sheet(ws5, borda_ranking, "Borda Count Ranking", start_row=r5)
+    # ── Sheet 5: Model Comparison ─────────────────────────────────────────────
+    ws5 = wb.create_sheet("Model Comparison")
+    ws5.cell(row=1, column=1, value="Model Comparison: TOPSIS vs Yuan & Yuan").font = title_font
+    ws5.cell(row=2, column=1,
+             value="Green = Agree (same rank from both methods). Amber = Differ.").font = note_font
+    ws5.row_dimensions[1].height = 20
+
+    mc_headers = ["Fund", "TOPSIS Score", "TOPSIS Rank", "Yuan Score", "Yuan Rank", "Consensus"]
+    for col_idx, h in enumerate(mc_headers, 1):
+        ws5.cell(row=3, column=col_idx, value=h)
+    style_header_row(ws5, 3, len(mc_headers))
+    ws5.auto_filter.ref = f"A3:{get_column_letter(len(mc_headers))}3"
+    ws5.freeze_panes = ws5["A4"]
+
+    if combined_df is not None:
+        for i, (idx, r) in enumerate(combined_df.iterrows()):
+            data_row = 4 + i
+            try:
+                ts = round(float(r.get("TOPSIS Score", r.iloc[0])), 4)
+            except (ValueError, TypeError):
+                ts = "-"
+            try:
+                tr = int(r.get("TOPSIS Rank", r.iloc[1]))
+            except (ValueError, TypeError):
+                tr = "-"
+            try:
+                ys = round(float(r.get("Yuan Score", r.iloc[2])), 6)
+            except (ValueError, TypeError):
+                ys = "-"
+            try:
+                yr = int(r.get("Yuan Rank", r.iloc[3]))
+            except (ValueError, TypeError):
+                yr = "-"
+            agree = "Agree" if (tr == yr and tr != "-") else "Differ"
+            row_fill = green_fill if agree == "Agree" else amber_fill
+            for col_idx, val in enumerate([str(idx), ts, tr, ys, yr, agree], 1):
+                cell = ws5.cell(row=data_row, column=col_idx, value=val)
+                cell.font      = body_font
+                cell.border    = border
+                cell.fill      = row_fill
+                cell.alignment = (left if col_idx == 1 else
+                                  (center if col_idx == len(mc_headers) else right_align))
     auto_width(ws5)
+
+    # ── Sheet 6: Sensitivity Analysis ────────────────────────────────────────
+    ws6 = wb.create_sheet("Sensitivity Analysis")
+    ws6.cell(row=1, column=1, value="Sensitivity Analysis: Yuan & Yuan Score Shares").font = title_font
+    ws6.cell(row=2, column=1,
+             value="Values show eigenvector score share (% of total) and rank in parentheses. "
+                   "Four alternative pillar-weight schemes.").font = note_font
+    ws6.row_dimensions[1].height = 20
+
+    if sensitivity_df is not None and not sensitivity_df.empty:
+        sa_funds   = list(sensitivity_df.columns)
+        sa_schemes = list(sensitivity_df.index)
+        sa_headers = ["Weight Scheme"] + sa_funds
+        for col_idx, h in enumerate(sa_headers, 1):
+            ws6.cell(row=3, column=col_idx, value=h)
+        style_header_row(ws6, 3, len(sa_headers))
+        ws6.auto_filter.ref = f"A3:{get_column_letter(len(sa_headers))}3"
+        ws6.freeze_panes = ws6["B4"]
+
+        for i, scheme in enumerate(sa_schemes):
+            data_row = 4 + i
+            ws6.cell(row=data_row, column=1, value=str(scheme))
+            ws6.cell(row=data_row, column=1).font      = body_font
+            ws6.cell(row=data_row, column=1).border    = border
+            ws6.cell(row=data_row, column=1).fill      = warm_fill if i % 2 == 1 else PatternFill("solid", fgColor=WHITE)
+            ws6.cell(row=data_row, column=1).alignment = left
+            for col_idx, fund in enumerate(sa_funds, 2):
+                val = sensitivity_df.loc[scheme, fund]
+                cell = ws6.cell(row=data_row, column=col_idx, value=str(val) if pd.notna(val) else "-")
+                cell.font      = body_font
+                cell.border    = border
+                cell.fill      = warm_fill if i % 2 == 1 else PatternFill("solid", fgColor=WHITE)
+                cell.alignment = center
+    auto_width(ws6)
+
+    # ── Sheet 7: Supplementary Rankings ──────────────────────────────────────
+    ws7 = wb.create_sheet("Supplementary Rankings")
+    r7 = 1
+    if naive_ranking is not None:
+        r7 = write_df_to_sheet(ws7, naive_ranking, "Naive Ranking", start_row=r7)
+        r7 += 2
+    if borda_ranking is not None:
+        write_df_to_sheet(ws7, borda_ranking, "Borda Count Ranking", start_row=r7)
+    auto_width(ws7)
+
+    # ── Sheet 8: Methodology & Notes ─────────────────────────────────────────
+    ws8 = wb.create_sheet("Methodology & Notes")
+    ws8.column_dimensions["A"].width = 28
+    ws8.column_dimensions["B"].width = 80
+
+    def _note_row(ws, row_num, label, text, bold_label=False):
+        lc = ws.cell(row=row_num, column=1, value=label)
+        tc = ws.cell(row=row_num, column=2, value=text)
+        lc.font = Font(name="Calibri", bold=bold_label, size=10, color=TEAL if bold_label else "000000")
+        tc.font = Font(name="Calibri", size=10)
+        lc.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
+        tc.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
+        ws.row_dimensions[row_num].height = max(15, min(60, len(text) // 5))
+
+    ws8.cell(row=1, column=1, value="Methodology & Notes").font = title_font
+    ws8.cell(row=2, column=1, value=f"Pillar weights: {_pillar_weight_str()} (Returns / Risk-Adj / Risk-DD / Costs / ESG)").font = body_font
+    ws8.row_dimensions[1].height = 22
+
+    method_rows = [
+        (True,  "TOPSIS",
+         "Technique for Order Preference by Similarity to Ideal Solution (Hwang & Yoon, 1981). "
+         "Five steps: (1) vector normalise the decision matrix; (2) apply pillar weights; "
+         "(3) identify Positive Ideal Solution (PIS) and Negative Ideal Solution (NIS); "
+         "(4) compute Euclidean distance from PIS (D_plus) and NIS (D_minus) for each fund; "
+         "(5) derive closeness coefficient C* = D_minus / (D_plus + D_minus). Higher C* = better."),
+        (True,  "Yuan & Yuan",
+         "Yuan & Yuan (2023) eigenvector method. Constructs an n x n pairwise competition matrix C "
+         "where c(i,j) is the weighted proportion of metrics on which fund i outperforms fund j. "
+         "Principal eigenvector extracted via power iteration. Scores sum to 1 across all funds."),
+        (True,  "Weighting",
+         f"Five pillars: Returns, Risk-Adjusted, Risk & Drawdown, Costs, ESG. "
+         f"Active weights: {_pillar_weight_str()}. Within each pillar, weight is shared equally "
+         f"across its component metrics."),
+        (True,  "Benchmark",
+         "MSCI Emerging Markets Index total return (USD), proxied via iShares MSCI EM ETF (EEM). "
+         "Appears in metrics tables as a reference comparator; excluded from fund rankings."),
+        (True,  "Risk-Free Rate",
+         "5% p.a. annualised, applied to Sharpe, Sortino, Treynor, and Information Ratio calculations."),
+        (True,  "Sensitivity",
+         "Four alternative weight schemes: Baseline (40/25/20/10/5), Return-Heavy (60/20/10/5/5), "
+         "Risk-Heavy (25/35/30/5/5), Equal Weights (20/20/20/20/20). "
+         "Yuan & Yuan is re-run for each scheme. Values are score shares (sum to 1)."),
+        (True,  "Data Source",
+         "Historical pricing data sourced via Yahoo Finance. UK-domiciled funds unavailable on "
+         "Yahoo Finance are proxied by equivalent US-listed ETFs."),
+        (True,  "Disclaimer",
+         "For informational and educational purposes only. Not investment advice. "
+         "Past performance is not a reliable indicator of future results. "
+         "Prepared by Qaweem Ahmad, MSc Finance, University of Nottingham, BUSI4519."),
+    ]
+    for i, (bold, label, text) in enumerate(method_rows):
+        _note_row(ws8, 4 + i, label, text, bold_label=bold)
 
     buf = io.BytesIO()
     wb.save(buf)
@@ -978,7 +1183,7 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap');
 
-/* Scoped font — does not touch Streamlit internals or Material icon elements */
+/* Scoped font - does not touch Streamlit internals or Material icon elements */
 html, body, .stApp, .stMarkdown, p, h1, h2, h3, h4, h5, h6,
 .stButton, .stSelectbox, .stTextInput, .stNumberInput,
 .stRadio, .stSlider, .stTabs, .stExpander, label, .element-container {
@@ -3684,7 +3889,8 @@ elif page == "Sensitivity & Report":
                 st.session_state.fund_names, sample_period,
                 st.session_state.core_metrics_df, st.session_state.downside_df,
                 st.session_state.topsis_ranking, st.session_state.yuan_ranking,
-                combined_df, text_df
+                combined_df, text_df,
+                pillar_weights=st.session_state.get("pillar_weights"),
             )
             _pdf_slot = _export_link(pdf_bytes, "fund_analysis_report.pdf", "application/pdf", "Download PDF Report")
         except Exception as _e:
@@ -3702,6 +3908,9 @@ elif page == "Sensitivity & Report":
                 metrics_matrix  = st.session_state.metrics_matrix,
                 naive_ranking   = st.session_state.get("naive_ranking"),
                 borda_ranking   = st.session_state.get("borda_ranking"),
+                combined_df     = combined_df,
+                sensitivity_df  = text_df,
+                pillar_weights  = st.session_state.get("pillar_weights"),
             )
             _excel_fname = f"fund_analysis_{pd.Timestamp.now().strftime('%Y%m%d')}.xlsx"
             _excel_slot = _export_link(
