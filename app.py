@@ -804,7 +804,7 @@ def chart_monthly_heatmap(fund_returns, colours, plotly_layout):
         height=160 * n,
         margin=dict(r=90),
         paper_bgcolor="#FFFFFF",
-        plot_bgcolor="#DCDCDC",
+        plot_bgcolor="#F3F3F3",
     )
     return fig
 
