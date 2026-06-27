@@ -67,23 +67,72 @@ def chart_topsis_heatmap(normalised_df: pd.DataFrame, plotly_layout: Dict) -> go
 
 
 def chart_cmatrix(c_matrix: pd.DataFrame, plotly_layout: Dict) -> go.Figure:
-    # to_numpy(copy=True) guarantees a writable array -- .copy().astype(float).values
-    # can still return a read-only buffer in some pandas/NumPy version combinations.
-    z_matrix = c_matrix.to_numpy(dtype=float, copy=True)
-    np.fill_diagonal(z_matrix, np.nan)
-    text_matrix = np.round(z_matrix, 3)
+    labels = list(c_matrix.columns)
+    n = len(labels)
+
+    # Writable NumPy copy -- to_numpy(copy=True) avoids read-only buffer issues
+    c_vals = c_matrix.to_numpy(dtype=float, copy=True)
+
+    # Trace 1: off-diagonal competition scores (diagonal = NaN)
+    main_z = c_vals.copy()
+    np.fill_diagonal(main_z, np.nan)
+
+    # Trace 2: diagonal overlay -- neutral colour, plain "-" to indicate self-comparison
+    diag_z = np.full((n, n), np.nan, dtype=float)
+    np.fill_diagonal(diag_z, 0.0)
+
+    off_diag_text = [
+        ["" if r == c else f"{c_vals[r, c]:.3f}" for c in range(n)]
+        for r in range(n)
+    ]
+    diag_text = [
+        ["-" if r == c else "" for c in range(n)]
+        for r in range(n)
+    ]
+
     fig = go.Figure(data=go.Heatmap(
-        z=z_matrix,
-        x=c_matrix.columns,
-        y=c_matrix.index,
-        colorscale=[[0, '#FF3B30'], [0.5, '#FF9F0A'], [1, '#34C759']],
-        text=text_matrix,
+        z=main_z,
+        x=labels,
+        y=labels,
+        text=off_diag_text,
         texttemplate="%{text}",
-        textfont={"size": 10},
-        hoverongaps=False
+        textfont=dict(size=10, color="#1A1A1A"),
+        colorscale=[[0, '#FF3B30'], [0.5, '#FF9F0A'], [1, '#34C759']],
+        colorbar=dict(
+            title=dict(text="Score", font=dict(color="#9B9B9B", size=10)),
+            tickformat=".2f",
+            tickfont=dict(size=9, color="#9B9B9B"),
+            x=1.02,
+            xanchor="left",
+            thickness=12,
+            len=0.8,
+        ),
+        hoverongaps=False,
     ))
+
+    # Diagonal overlay: neutral warm-grey, no colorbar
+    fig.add_trace(go.Heatmap(
+        z=diag_z,
+        x=labels,
+        y=labels,
+        text=diag_text,
+        texttemplate="%{text}",
+        textfont=dict(size=11, color="#9B9B9B"),
+        colorscale=[[0.0, "#F6F2EC"], [1.0, "#F6F2EC"]],
+        zmin=-0.5, zmax=0.5,
+        showscale=False,
+        hoverongaps=False,
+        hovertemplate="<b>%{x}</b><br>Self-comparison<extra></extra>",
+    ))
+
     fig.update_layout(**{k: v for k, v in plotly_layout.items() if k != 'title'})
-    fig.update_layout(title=dict(text="Pairwise Competition Matrix", font=dict(size=16, color="#1D1D1F")))
+    fig.update_layout(
+        title=dict(text="Pairwise Competition Matrix", font=dict(size=16, color="#1D1D1F")),
+        height=420,
+        margin=dict(r=90),
+        plot_bgcolor="#FFFFFF",
+        showlegend=False,
+    )
     return fig
 
 

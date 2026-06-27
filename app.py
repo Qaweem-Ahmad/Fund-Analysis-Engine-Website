@@ -3197,7 +3197,7 @@ elif page == "Yuan & Yuan":
             
             colours = {name: _get_colour(name, i) for i, name in enumerate(st.session_state.fund_names)}
             fig_c = chart_cmatrix(c_matrix, PLOTLY_LAYOUT)
-            st.plotly_chart(fig_c, use_container_width=True)
+            st.plotly_chart(fig_c, use_container_width=True, config={"displayModeBar": False})
 
             fig_yuan_bar = chart_scores_bar(yuan_ranking, colours, PLOTLY_LAYOUT, "Yuan & Yuan Scores")
             st.plotly_chart(fig_yuan_bar, use_container_width=True)
