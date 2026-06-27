@@ -37,3 +37,10 @@ desktop.ini
 # Large output files — keep HTML charts but ignore any raw exports
 *.pkl
 *.parquet
+
+# Testing
+.pytest_cache/
+
+# Unrelated local folders
+anaconda_projects/
+frontend/
