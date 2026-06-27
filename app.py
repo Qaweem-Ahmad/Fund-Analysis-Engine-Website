@@ -3164,16 +3164,16 @@ elif page == "Yuan & Yuan":
     else:
         st.markdown("# Yuan & Yuan Ranking")
         st.markdown("""
-        <div style="background:#EAF2F3; border-left:4px solid #154D57; border-radius:0 8px 8px 0; padding:1rem 1.25rem; margin-bottom:2rem;">
+        <div style="background:#EAF2F3; border-left:4px solid #154D57; border-radius:0 8px 8px 0; padding:1rem 1.25rem; margin-bottom:1rem;">
             <p style="margin:0; color:#154D57; font-size:0.875rem; line-height:1.6;">
                 Pairwise competition eigenvector method (Yuan & Yuan, 2023) for stable ranking convergence.
             </p>
         </div>
         """, unsafe_allow_html=True)
-        st.markdown('<hr style="border:none; border-top: 1px solid #E8DDD3; margin: 1.5rem 0;">', unsafe_allow_html=True)
-        
+        st.markdown('<hr style="border:none; border-top: 1px solid #E8DDD3; margin: 0.75rem 0;">', unsafe_allow_html=True)
+
         st.info("This method constructs a competition matrix based on pairwise comparisons across weighted metrics, then applies power iteration to converge on an eigenvector representing the relative strengths of alternatives.")
-        st.markdown('<hr style="border:none; border-top: 1px solid #E8DDD3; margin: 1.5rem 0;">', unsafe_allow_html=True)
+        st.markdown('<hr style="border:none; border-top: 1px solid #E8DDD3; margin: 0.75rem 0;">', unsafe_allow_html=True)
 
         with st.expander("📚 Yuan & Yuan Methodology Walkthrough"):
             st.markdown("""
