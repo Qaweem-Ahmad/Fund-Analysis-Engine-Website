@@ -373,9 +373,10 @@ def generate_excel(fund_names, sample_period, core_metrics_df, downside_df,
     ws1.cell(row=2, column=1, value=f"Sample Period: {sample_period}").font = body_font
     ws1.cell(row=3, column=1, value=f"Funds: {', '.join(fund_names)}").font = body_font
     ws1.cell(row=4, column=1, value=f"Generated: {pd.Timestamp.now().strftime('%d %B %Y')}").font = body_font
+    ws1.cell(row=5, column=1, value="Prepared by: Qaweem Ahmad").font = body_font
     ws1.row_dimensions[1].height = 24
 
-    row = 6
+    row = 7
     ws1.cell(row=row, column=1, value="TOPSIS Rankings").font = subheader_font
     ws1.cell(row=row, column=1).fill = subheader_fill
     row += 1
@@ -1235,6 +1236,21 @@ section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] {
     letter-spacing: -0.03em !important;
     white-space: nowrap !important;
     color: #0A0A0A !important;
+    display: flex !important;
+    align-items: baseline !important;
+    gap: 0.35rem !important;
+}
+
+.qma-badge {
+    font-size: 0.52rem !important;
+    font-weight: 700 !important;
+    color: #154D57 !important;
+    background: rgba(21,77,87,0.08) !important;
+    border: 1px solid rgba(21,77,87,0.22) !important;
+    border-radius: 4px !important;
+    padding: 0.1rem 0.28rem !important;
+    letter-spacing: 0.07em !important;
+    flex-shrink: 0 !important;
 }
 
 section[data-testid="stSidebar"] .stRadio {
@@ -1639,7 +1655,7 @@ for key, value in defaults.items():
 
 # Sidebar
 st.sidebar.markdown("""
-<div class="sidebar-title">Fund Analysis Engine</div>
+<div class="sidebar-title">Fund Analysis Engine<span class="qma-badge">QMA</span></div>
 """, unsafe_allow_html=True)
 pages = ["Home", "Setup", "Performance", "⚖️ Comparison", "TOPSIS", "Yuan & Yuan", "📋 Executive Summary", "📋 Model Comparison", "📅 Rolling Rankings", "🎨 Visualisations", "📦 Portfolio", "Sensitivity & Report", "🗃️ Raw Data"]
 if "_nav_page_idx" not in st.session_state:
@@ -1686,7 +1702,16 @@ else:
 if page == "Home":
     st.markdown("""
 <div style="max-width:860px;margin:1rem auto 0;padding:0 2rem;">
-    <div style="display:flex;justify-content:flex-end;margin-bottom:0.9rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;
+                margin-bottom:0.9rem;flex-wrap:wrap;gap:0.5rem;">
+        <div style="display:inline-flex;align-items:center;gap:.5rem;
+                    background:rgba(21,77,87,.07);border:1px solid rgba(21,77,87,.18);
+                    border-radius:980px;padding:.25rem 1rem;">
+            <span style="width:6px;height:6px;border-radius:50%;background:#154D57;display:inline-block;"></span>
+            <span style="font-size:.7rem;font-weight:600;color:#154D57;letter-spacing:.1em;text-transform:uppercase;">
+                Qaweem Ahmad
+            </span>
+        </div>
         <div style="display:inline-flex;align-items:center;gap:.5rem;
                     background:rgba(21,77,87,.07);border:1px solid rgba(21,77,87,.18);
                     border-radius:980px;padding:.25rem 1rem;">
@@ -1703,10 +1728,13 @@ if page == "Home":
                      -webkit-background-clip:text;-webkit-text-fill-color:transparent;
                      background-clip:text;">Built from First Principles.</span>
     </h1>
-    <p style="font-size:1.15rem;color:#5A5A5A;line-height:1.65;margin:0 0 1.4rem;max-width:680px;">
+    <p style="font-size:1.15rem;color:#5A5A5A;line-height:1.65;margin:0 0 0.6rem;max-width:680px;">
         A rigorous multi-criteria evaluation framework comparing emerging market equity funds
         across <strong>19 metrics</strong> using TOPSIS and Yuan &amp; Yuan (2023) eigenvector
         ranking  -  built in Python and deployed as an interactive tool.
+    </p>
+    <p style="font-size:0.8rem;color:#9B8C7E;margin:0 0 0.9rem;letter-spacing:0.01em;">
+        Created by Qaweem Ahmad
     </p>
 </div>
 """, unsafe_allow_html=True)
@@ -2324,7 +2352,7 @@ elif page == "Setup":
     st.markdown("""
     <div style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid #E8DDD3; text-align:center;">
         <p style="color:#7A6F65; font-size:0.75rem; margin:0;">
-            Fund Analysis Engine · Capital Markets Analysis BUSI4519 · University of Nottingham · 2025
+            Fund Analysis Engine · Built by Qaweem Ahmad · Capital Markets Analysis BUSI4519 · University of Nottingham · 2025
         </p>
         <p style="color:#9B8C7E; font-size:0.75rem; margin:0.25rem 0 0 0;">
             Data sourced via Yahoo Finance. ETF proxies used for UK-domiciled funds.
@@ -2352,7 +2380,7 @@ elif page == "Performance":
         st.markdown("""
         <div style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid #E8DDD3; text-align:center;">
             <p style="color:#7A6F65; font-size:0.75rem; margin:0;">
-                Fund Analysis Engine · Capital Markets Analysis BUSI4519 · University of Nottingham · 2025
+                Fund Analysis Engine · Built by Qaweem Ahmad · Capital Markets Analysis BUSI4519 · University of Nottingham · 2025
             </p>
             <p style="color:#9B8C7E; font-size:0.75rem; margin:0.25rem 0 0 0;">
                 Data sourced via Yahoo Finance. ETF proxies used for UK-domiciled funds.
@@ -2595,7 +2623,7 @@ elif page == "Performance":
         st.markdown("""
         <div style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid #E8DDD3; text-align:center;">
             <p style="color:#7A6F65; font-size:0.75rem; margin:0;">
-                Fund Analysis Engine · Capital Markets Analysis BUSI4519 · University of Nottingham · 2025
+                Fund Analysis Engine · Built by Qaweem Ahmad · Capital Markets Analysis BUSI4519 · University of Nottingham · 2025
             </p>
             <p style="color:#9B8C7E; font-size:0.75rem; margin:0.25rem 0 0 0;">
                 Data sourced via Yahoo Finance. ETF proxies used for UK-domiciled funds.
@@ -2624,7 +2652,7 @@ elif page == "TOPSIS":
         st.markdown("""
         <div style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid #E8DDD3; text-align:center;">
             <p style="color:#7A6F65; font-size:0.75rem; margin:0;">
-                Fund Analysis Engine · Capital Markets Analysis BUSI4519 · University of Nottingham · 2025
+                Fund Analysis Engine · Built by Qaweem Ahmad · Capital Markets Analysis BUSI4519 · University of Nottingham · 2025
             </p>
             <p style="color:#9B8C7E; font-size:0.75rem; margin:0.25rem 0 0 0;">
                 Data sourced via Yahoo Finance. ETF proxies used for UK-domiciled funds.
@@ -3144,7 +3172,7 @@ elif page == "TOPSIS":
         st.markdown("""
         <div style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid #E8DDD3; text-align:center;">
             <p style="color:#7A6F65; font-size:0.75rem; margin:0;">
-                Fund Analysis Engine · Capital Markets Analysis BUSI4519 · University of Nottingham · 2025
+                Fund Analysis Engine · Built by Qaweem Ahmad · Capital Markets Analysis BUSI4519 · University of Nottingham · 2025
             </p>
             <p style="color:#9B8C7E; font-size:0.75rem; margin:0.25rem 0 0 0;">
                 Data sourced via Yahoo Finance. ETF proxies used for UK-domiciled funds.
@@ -3173,7 +3201,7 @@ elif page == "Yuan & Yuan":
         st.markdown("""
         <div style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid #E8DDD3; text-align:center;">
             <p style="color:#7A6F65; font-size:0.75rem; margin:0;">
-                Fund Analysis Engine · Capital Markets Analysis BUSI4519 · University of Nottingham · 2025
+                Fund Analysis Engine · Built by Qaweem Ahmad · Capital Markets Analysis BUSI4519 · University of Nottingham · 2025
             </p>
             <p style="color:#9B8C7E; font-size:0.75rem; margin:0.25rem 0 0 0;">
                 Data sourced via Yahoo Finance. ETF proxies used for UK-domiciled funds.
@@ -3407,7 +3435,7 @@ elif page == "Yuan & Yuan":
         st.markdown("""
         <div style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid #E8DDD3; text-align:center;">
             <p style="color:#7A6F65; font-size:0.75rem; margin:0;">
-                Fund Analysis Engine · Capital Markets Analysis BUSI4519 · University of Nottingham · 2025
+                Fund Analysis Engine · Built by Qaweem Ahmad · Capital Markets Analysis BUSI4519 · University of Nottingham · 2025
             </p>
             <p style="color:#9B8C7E; font-size:0.75rem; margin:0.25rem 0 0 0;">
                 Data sourced via Yahoo Finance. ETF proxies used for UK-domiciled funds.
@@ -3436,7 +3464,7 @@ elif page == "Sensitivity & Report":
         st.markdown("""
         <div style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid #E8DDD3; text-align:center;">
             <p style="color:#7A6F65; font-size:0.75rem; margin:0;">
-                Fund Analysis Engine · Capital Markets Analysis BUSI4519 · University of Nottingham · 2025
+                Fund Analysis Engine · Built by Qaweem Ahmad · Capital Markets Analysis BUSI4519 · University of Nottingham · 2025
             </p>
             <p style="color:#9B8C7E; font-size:0.75rem; margin:0.25rem 0 0 0;">
                 Data sourced via Yahoo Finance. ETF proxies used for UK-domiciled funds.
@@ -3700,13 +3728,16 @@ elif page == "Sensitivity & Report":
                 {_excel_slot}
             </div>
         </div>
+        <div style="text-align:center;margin-top:0.9rem;">
+            <span style="font-size:0.72rem;color:#9B8C7E;letter-spacing:0.01em;">Prepared by Qaweem Ahmad</span>
+        </div>
         """, unsafe_allow_html=True)
 
         # Footer
         st.markdown("""
         <div style="margin-top:2rem; padding-top:0.75rem; border-top:1px solid #E8DDD3; text-align:center;">
             <p style="color:#7A6F65; font-size:0.75rem; margin:0;">
-                Fund Analysis Engine · Capital Markets Analysis BUSI4519 · University of Nottingham · 2025
+                Fund Analysis Engine · Built by Qaweem Ahmad · Capital Markets Analysis BUSI4519 · University of Nottingham · 2025
             </p>
             <p style="color:#9B8C7E; font-size:0.75rem; margin:0.25rem 0 0 0;">
                 Data sourced via Yahoo Finance. ETF proxies used for UK-domiciled funds.
@@ -3786,7 +3817,7 @@ elif page == "📋 Model Comparison":
     st.markdown("""
     <div style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid #E8DDD3; text-align:center;">
         <p style="color:#7A6F65; font-size:0.75rem; margin:0;">
-            Fund Analysis Engine · Capital Markets Analysis BUSI4519 · University of Nottingham · 2025
+            Fund Analysis Engine · Built by Qaweem Ahmad · Capital Markets Analysis BUSI4519 · University of Nottingham · 2025
         </p>
         <p style="color:#9B8C7E; font-size:0.75rem; margin:0.25rem 0 0 0;">
             Data sourced via Yahoo Finance. ETF proxies used for UK-domiciled funds.

@@ -603,6 +603,8 @@ def generate_pdf(
         '<b>Methodologies:</b>  TOPSIS (Hwang &amp; Yoon, 1981)  '
         '\u00b7  Yuan &amp; Yuan Eigenvector (2023)',
         S['cover_meta']))
+    story.append(Paragraph('<b>Prepared by:</b>  Qaweem Ahmad',
+                            S['cover_meta']))
     story.append(Spacer(1, 8 * mm))
     story.append(Paragraph(
         'This report presents a systematic, quantitative comparison of '
