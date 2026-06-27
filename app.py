@@ -3174,7 +3174,50 @@ elif page == "Yuan & Yuan":
         
         st.info("This method constructs a competition matrix based on pairwise comparisons across weighted metrics, then applies power iteration to converge on an eigenvector representing the relative strengths of alternatives.")
         st.markdown('<hr style="border:none; border-top: 1px solid #E8DDD3; margin: 1.5rem 0;">', unsafe_allow_html=True)
-        
+
+        with st.expander("📚 Yuan & Yuan Methodology Walkthrough"):
+            st.markdown("""
+            <p style="font-size:0.85rem;color:#5A5A5A;margin-bottom:1rem;">
+                How the pairwise competition matrix and eigenvector ranking was computed
+                for this analysis.
+            </p>
+            """, unsafe_allow_html=True)
+            yuan_steps = [
+                ("Step 1: Pairwise Competition Matrix",
+                 "An {n}×{n} matrix C is constructed where each cell c(i,j) represents how strongly "
+                 "fund i outperforms fund j across all {m} weighted metrics simultaneously. "
+                 "Values range from 0 (complete dominance by j) to 100 (complete dominance by i)."),
+                ("Step 2: Power Iteration",
+                 "The principal eigenvector of matrix C is extracted using power iteration. "
+                 "The algorithm multiplies C by a random vector repeatedly until it converges. "
+                 "The resulting vector represents each fund's relative competitive strength."),
+                ("Step 3: Score Normalisation",
+                 "The raw eigenvector values are normalised so they sum to 1.0. "
+                 "These scores form a ratio scale: a fund with score 0.60 is "
+                 "twice as dominant as a fund with score 0.30 in pairwise competition."),
+                ("Step 4: Final Ranking",
+                 "Funds are ranked by descending eigenvector score. "
+                 "Where TOPSIS measures distance from an ideal point, Yuan & Yuan measures "
+                 "relative competitive dominance across all pairwise comparisons. The two methods cross-validate each other."),
+            ]
+            try:
+                n_funds = len(st.session_state.fund_names)
+                mm = st.session_state.metrics_matrix
+                for title, description in yuan_steps:
+                    st.markdown(f"""
+                    <div style="background:#FFFFFF;border-radius:12px;padding:1rem 1.25rem;
+                                margin-bottom:0.75rem;border-left:3px solid #4ECDC4;
+                                box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+                        <div style="font-size:0.78rem;font-weight:700;color:#154D57;
+                                    margin-bottom:0.35rem;">{title}</div>
+                        <div style="font-size:0.82rem;color:#5A5A5A;line-height:1.55;">
+                            {description.format(n=n_funds, m=len(mm))}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            except Exception as _e:
+                logging.debug("Yuan methodology cards skipped (non-critical): %s", _e)
+
         if 'pillar_weights' not in st.session_state:
             st.warning("Please set pillar weights in the TOPSIS page first.")
         else:
@@ -3225,49 +3268,6 @@ elif page == "Yuan & Yuan":
                 st.success("Both methods agree on the full ranking order.")
             else:
                 st.warning("~ Methods differ. See sensitivity analysis for context.")
-
-            with st.expander("📚 Yuan & Yuan Methodology Walkthrough"):
-                st.markdown("""
-                <p style="font-size:0.85rem;color:#5A5A5A;margin-bottom:1rem;">
-                    How the pairwise competition matrix and eigenvector ranking was computed
-                    for this analysis.
-                </p>
-                """, unsafe_allow_html=True)
-                yuan_steps = [
-                    ("Step 1: Pairwise Competition Matrix",
-                     "An {n}×{n} matrix C is constructed where each cell c(i,j) represents how strongly "
-                     "fund i outperforms fund j across all {m} weighted metrics simultaneously. "
-                     "Values range from 0 (complete dominance by j) to 100 (complete dominance by i)."),
-                    ("Step 2: Power Iteration",
-                     "The principal eigenvector of matrix C is extracted using power iteration. "
-                     "The algorithm multiplies C by a random vector repeatedly until it converges. "
-                     "The resulting vector represents each fund's relative competitive strength."),
-                    ("Step 3: Score Normalisation",
-                     "The raw eigenvector values are normalised so they sum to 1.0. "
-                     "These scores form a ratio scale: a fund with score 0.60 is "
-                     "twice as dominant as a fund with score 0.30 in pairwise competition."),
-                    ("Step 4: Final Ranking",
-                     "Funds are ranked by descending eigenvector score. "
-                     "Where TOPSIS measures distance from an ideal point, Yuan & Yuan measures "
-                     "relative competitive dominance across all pairwise comparisons. The two methods cross-validate each other."),
-                ]
-                try:
-                    n_funds = len(st.session_state.fund_names)
-                    mm = st.session_state.metrics_matrix
-                    for title, description in yuan_steps:
-                        st.markdown(f"""
-                        <div style="background:#FFFFFF;border-radius:12px;padding:1rem 1.25rem;
-                                    margin-bottom:0.75rem;border-left:3px solid #4ECDC4;
-                                    box-shadow:0 1px 4px rgba(0,0,0,0.04);">
-                            <div style="font-size:0.78rem;font-weight:700;color:#154D57;
-                                        margin-bottom:0.35rem;">{title}</div>
-                            <div style="font-size:0.82rem;color:#5A5A5A;line-height:1.55;">
-                                {description.format(n=n_funds, m=len(mm))}
-                            </div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                except Exception as _e:
-                    logging.debug("Yuan methodology cards skipped (non-critical): %s", _e)
 
             # ── Feature 4: Recommendation Badges ──────────────────────────
             st.markdown('<div style="height:1rem;"></div>', unsafe_allow_html=True)
