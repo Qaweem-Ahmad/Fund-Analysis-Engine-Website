@@ -1253,6 +1253,19 @@ section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] {
     flex-shrink: 0 !important;
 }
 
+/* Run Analysis button -- only active when .run-btn-wrap marker is in DOM (Setup page only) */
+body:has(.run-btn-wrap) [data-testid="stBaseButton-primary"] {
+    font-weight: 600 !important;
+    border-radius: 8px !important;
+    transition: background-color 0.15s ease, border-color 0.15s ease !important;
+}
+body:has(.run-btn-wrap) [data-testid="stBaseButton-primary"]:hover,
+body:has(.run-btn-wrap) [data-testid="stBaseButton-primary"]:focus:hover {
+    background-color: #1A6070 !important;
+    border-color: #1A6070 !important;
+    color: #FFFFFF !important;
+}
+
 section[data-testid="stSidebar"] .stRadio {
     margin-top: 0 !important;
     padding-top: 0 !important;
@@ -2201,9 +2214,10 @@ elif page == "Setup":
     st.markdown('<hr style="border:none; border-top:1px solid #E8DDD3; margin:2.5rem 0;">', unsafe_allow_html=True)
 
     # ── RUN ANALYSIS ──────────────────────────────────────────────────────
+    st.markdown('<div class="run-btn-wrap"></div>', unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1,1,1])
     with col2:
-        run_clicked = st.button("Run Analysis", key="run_button")
+        run_clicked = st.button("Run Analysis", key="run_button", type="primary", use_container_width=True)
 
     # Full-width placeholders rendered OUTSIDE the column so they span the page
     _progress_slot = st.empty()
