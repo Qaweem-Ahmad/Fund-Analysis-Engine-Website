@@ -822,29 +822,48 @@ def chart_return_distribution(fund_returns, colours, plotly_layout):
 
 def chart_correlation_heatmap(log_returns, plotly_layout):
     """Annotated pairwise correlation matrix for all series."""
-    corr = log_returns.corr().round(3)
+    corr_full = log_returns.corr()
+    logging.debug("Correlation matrix (unrounded):\n%s", corr_full.to_string())
+    corr = corr_full.round(3)
     labels = corr.columns.tolist()
+    n = len(labels)
+
+    # Mute diagonal in z so off-diagonal values fill the colour range
+    corr_z = corr.copy().astype(float)
+    np.fill_diagonal(corr_z.values, np.nan)
+
+    # 3 dp text for all cells; diagonal explicitly shows "1.000"
+    text_matrix = [[f"{corr.iloc[r, c]:.3f}" for c in range(n)] for r in range(n)]
+
     fig = go.Figure(data=go.Heatmap(
-        z=corr.values,
+        z=corr_z.values,
         x=labels,
         y=labels,
-        text=corr.values.round(2),
+        text=text_matrix,
         texttemplate="%{text}",
         textfont=dict(size=12, color="#1A1A1A"),
         colorscale=[
-            [0.0,  "#DC2626"],
-            [0.25, "#FCA5A5"],
-            [0.5,  "#F5F5F5"],
-            [0.75, "#86EFAC"],
-            [1.0,  "#059669"],
+            [0.0, "#FCA5A5"],
+            [0.5, "#F5F5F5"],
+            [1.0, "#059669"],
         ],
-        zmin=-1, zmax=1,
+        zmin=0.80, zmax=1.00,
         colorbar=dict(
-            title=dict(text="Correlation", font=dict(color="#9B9B9B")),
+            title=dict(text="r", font=dict(color="#9B9B9B", size=11)),
+            tickvals=[0.80, 0.85, 0.90, 0.95, 1.00],
+            tickformat=".2f",
             tickfont=dict(color="#9B9B9B"),
         ),
         hoverongaps=False,
     ))
+    fig.add_annotation(
+        text="Colour scale 0.80-1.00 to reveal within-range differences. Diagonal (self-correlation = 1.000) is muted.",
+        xref="paper", yref="paper",
+        x=0.0, y=-0.16,
+        showarrow=False,
+        font=dict(size=10, color="#9B9B9B"),
+        xanchor="left",
+    )
     layout = {k: v for k, v in plotly_layout.items() if k != "title"}
     fig.update_layout(**layout)
     fig.update_layout(
@@ -852,6 +871,7 @@ def chart_correlation_heatmap(log_returns, plotly_layout):
         xaxis=dict(tickangle=-30),
         yaxis=dict(autorange="reversed"),
         height=480,
+        margin=dict(b=65),
     )
     return fig
 
